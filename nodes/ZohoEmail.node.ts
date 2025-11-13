@@ -264,6 +264,26 @@ export class ZohoEmail implements INodeType {
         const baseURL = 'https://mail.zoho.com/api';
 
         for (let i = 0; i < items.length; i++) {
+            /**
+             * Send an email via Zoho Mail API
+             *
+             * @see https://www.zoho.com/mail/help/api/post-send-mail.html
+             *
+             * Sends an email with support for HTML/plain text content, CC, BCC, and scheduling.
+             * Supports:
+             * - Required: accountId, fromAddress, toAddress, subject, content
+             * - Optional: ccAddress, bccAddress, mailFormat (html/plaintext), encoding
+             * - Scheduling: isSchedule, scheduleType, timeZone, scheduleTime
+             * - Read receipts: askReceipt
+             *
+             * Available schedule types:
+             * - 1: After 1 hour
+             * - 2: After 2 hours
+             * - 3: After 4 hours
+             * - 4: Next day morning
+             * - 5: Next day afternoon
+             * - 6: Custom date & time (requires timeZone and scheduleTime)
+             */
             if (operation === 'sendEmail') {
                 const accountId = this.getNodeParameter('accountId', i) as string;
                 const fromAddress = this.getNodeParameter('fromAddress', i) as string;

@@ -174,6 +174,14 @@ export class ZohoSheets implements INodeType {
         const baseURL = 'https://sheet.zoho.eu/api/v2';
 
         for (let i = 0; i < items.length; i++) {
+            /**
+             * Create a new workbook in Zoho Sheet
+             *
+             * @see https://www.zoho.com/sheet/help/api/v2/#create-new-workbook
+             *
+             * Creates a new empty workbook with the specified name.
+             * Requires: workbookName
+             */
             if (operation === 'create') {
                 const workbookName = this.getNodeParameter('workbookName', i) as string;
                 const qs: IDataObject = {
@@ -183,6 +191,16 @@ export class ZohoSheets implements INodeType {
                 // endpoint is https://sheet.zoho.eu/api/v2/create
                 const responseData = await zohoApiRequest.call(this, 'POST', baseURL, '/create', null, qs);
                 returnData.push({json: JSON.parse(responseData)});
+
+            /**
+             * List all workbooks in Zoho Sheet
+             *
+             * @see https://www.zoho.com/sheet/help/api/v2/#list-workbooks
+             *
+             * Retrieves a list of all workbooks accessible to the user.
+             * Supports pagination: startIndex, count
+             * Supports sorting: sortOption (e.g., recently_modified)
+             */
             } else if (operation === 'list') {
                 const sortOption = this.getNodeParameter('sortOption', i) as string;
                 const qs: IDataObject = {
@@ -196,6 +214,19 @@ export class ZohoSheets implements INodeType {
                 // endpoint is https://sheet.zoho.eu/api/v2/workbooks
                 const responseData = await zohoApiRequest.call(this, 'POST', baseURL, '/workbooks', null, qs);
                 returnData.push({json: JSON.parse(responseData)});
+
+            /**
+             * Add records to a worksheet in Zoho Sheet
+             *
+             * @see https://www.zoho.com/sheet/help/api/v2/#add-records
+             *
+             * Adds multiple records (rows) to a specified worksheet.
+             * Requires: resourceId (workbook ID), jsonData (array of records)
+             * Optional: worksheetName or worksheetId, headerRow (default: 1)
+             *
+             * The jsonData should be a JSON array of objects where each object represents a row.
+             * Keys in the objects should match the column headers in the worksheet.
+             */
             } else if (operation === 'addRecords') {
                 const resourceId = this.getNodeParameter('resourceId', i) as string;
                 const worksheetName = this.getNodeParameter('worksheetName', i) as string;
