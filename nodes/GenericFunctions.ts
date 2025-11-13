@@ -19,7 +19,7 @@ export function throwOnErrorStatus(
         data?: Array<{ status: string; message: string }>;
     },
 ) {
-    if (responseData?.data?.[0].status === 'error') {
+    if (responseData?.data?.[0]?.status === 'error') {
         throw new NodeOperationError(this.getNode(), responseData as Error);
     }
 }
