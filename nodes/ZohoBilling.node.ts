@@ -93,17 +93,15 @@ export class ZohoBilling implements INodeType {
             ...customerFields,
             ...eventFields,
             ...itemFields,
-            // JSON Data field for create/update operations
+            // JSON Data field for create/update operations (excluding Customer and Product which now have structured fields)
             jsonDataField(
-                ['product', 'plan', 'addon', 'subscription', 'invoice', 'payment', 'customer', 'item'],
+                ['plan', 'addon', 'subscription', 'invoice', 'payment', 'item'],
                 [
-                    'createProduct', 'updateProduct',
                     'createPlan', 'updatePlan',
                     'createAddon', 'updateAddon',
                     'createSubscription', 'updateSubscription',
                     'createInvoice', 'updateInvoice',
                     'createPayment',
-                    'createCustomer', 'updateCustomer',
                 ],
             ),
         ],
@@ -126,24 +124,24 @@ export class ZohoBilling implements INodeType {
                 const responseData = await zohoSubscriptionsApiRequest.call(this, 'GET', `${baseURL}/products/${productId}`, {}, {}, orgId);
                 returnData.push({json: responseData as IDataObject, pairedItem: { item: i }});
             } else if (operation === 'createProduct') {
-                const jsonData = this.getNodeParameter('jsonData', i) as string;
-                let body: IDataObject;
-                try {
-                    body = JSON.parse(jsonData) as IDataObject;
-                } catch {
-                    throw new NodeOperationError(this.getNode(), 'JSON Data must be valid JSON');
-                }
+                const productName = this.getNodeParameter('productName', i) as string;
+                const additionalFields = this.getNodeParameter('additionalFields', i, {}) as IDataObject;
+
+                const body: IDataObject = {
+                    name: productName,
+                    ...additionalFields,
+                };
+
                 const responseData = await zohoSubscriptionsApiRequest.call(this, 'POST', `${baseURL}/products`, body, {}, orgId);
                 returnData.push({json: responseData as IDataObject, pairedItem: { item: i }});
             } else if (operation === 'updateProduct') {
                 const productId = this.getNodeParameter('productId', i) as string;
-                const jsonData = this.getNodeParameter('jsonData', i) as string;
-                let body: IDataObject;
-                try {
-                    body = JSON.parse(jsonData) as IDataObject;
-                } catch {
-                    throw new NodeOperationError(this.getNode(), 'JSON Data must be valid JSON');
-                }
+                const additionalFields = this.getNodeParameter('additionalFields', i, {}) as IDataObject;
+
+                const body: IDataObject = {
+                    ...additionalFields,
+                };
+
                 const responseData = await zohoSubscriptionsApiRequest.call(this, 'PUT', `${baseURL}/products/${productId}`, body, {}, orgId);
                 returnData.push({json: responseData as IDataObject, pairedItem: { item: i }});
             } else if (operation === 'deleteProduct') {
@@ -415,13 +413,29 @@ export class ZohoBilling implements INodeType {
                 const responseData = await zohoSubscriptionsApiRequest.call(this, 'GET', `${baseURL}/customers/${customerId}/comments`, {}, {}, orgId);
                 returnData.push({json: responseData as IDataObject, pairedItem: { item: i }});
             } else if (operation === 'createCustomer') {
-                const jsonData = this.getNodeParameter('jsonData', i) as string;
-                let body: IDataObject;
-                try {
-                    body = JSON.parse(jsonData) as IDataObject;
-                } catch {
-                    throw new NodeOperationError(this.getNode(), 'JSON Data must be valid JSON');
+                const displayName = this.getNodeParameter('displayName', i) as string;
+                const additionalFields = this.getNodeParameter('additionalFields', i, {}) as IDataObject;
+                const billingAddress = this.getNodeParameter('billingAddress', i, {}) as { address?: IDataObject };
+                const shippingAddress = this.getNodeParameter('shippingAddress', i, {}) as { address?: IDataObject };
+                const customFields = this.getNodeParameter('customFields', i, { fields: [] }) as { fields?: Array<{ label: string; value: string }> };
+
+                const body: IDataObject = {
+                    display_name: displayName,
+                    ...additionalFields,
+                };
+
+                if (billingAddress.address && Object.keys(billingAddress.address).length > 0) {
+                    body.billing_address = billingAddress.address;
                 }
+
+                if (shippingAddress.address && Object.keys(shippingAddress.address).length > 0) {
+                    body.shipping_address = shippingAddress.address;
+                }
+
+                if (customFields.fields && customFields.fields.length > 0) {
+                    body.custom_fields = customFields.fields;
+                }
+
                 const responseData = await zohoSubscriptionsApiRequest.call(this, 'POST', `${baseURL}/customers`, body, {}, orgId);
                 returnData.push({json: responseData as IDataObject, pairedItem: { item: i }});
             } else if (operation === 'enableAllReminders') {
@@ -452,13 +466,27 @@ export class ZohoBilling implements INodeType {
                 returnData.push({json: responseData as IDataObject, pairedItem: { item: i }});
             } else if (operation === 'updateCustomer') {
                 const customerId = this.getNodeParameter('customerId', i) as string;
-                const jsonData = this.getNodeParameter('jsonData', i) as string;
-                let body: IDataObject;
-                try {
-                    body = JSON.parse(jsonData) as IDataObject;
-                } catch {
-                    throw new NodeOperationError(this.getNode(), 'JSON Data must be valid JSON');
+                const additionalFields = this.getNodeParameter('additionalFields', i, {}) as IDataObject;
+                const billingAddress = this.getNodeParameter('billingAddress', i, {}) as { address?: IDataObject };
+                const shippingAddress = this.getNodeParameter('shippingAddress', i, {}) as { address?: IDataObject };
+                const customFields = this.getNodeParameter('customFields', i, { fields: [] }) as { fields?: Array<{ label: string; value: string }> };
+
+                const body: IDataObject = {
+                    ...additionalFields,
+                };
+
+                if (billingAddress.address && Object.keys(billingAddress.address).length > 0) {
+                    body.billing_address = billingAddress.address;
                 }
+
+                if (shippingAddress.address && Object.keys(shippingAddress.address).length > 0) {
+                    body.shipping_address = shippingAddress.address;
+                }
+
+                if (customFields.fields && customFields.fields.length > 0) {
+                    body.custom_fields = customFields.fields;
+                }
+
                 const responseData = await zohoSubscriptionsApiRequest.call(this, 'PUT', `${baseURL}/customers/${customerId}`, body, {}, orgId);
                 returnData.push({json: responseData as IDataObject, pairedItem: { item: i }});
             } else if (operation === 'deleteCustomerComment') {
