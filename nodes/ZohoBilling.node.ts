@@ -4,7 +4,7 @@ import {
     type INodeExecutionData,
     type INodeType,
     type INodeTypeDescription,
-    NodeConnectionType,
+    NodeConnectionTypes,
     NodeOperationError,
 } from 'n8n-workflow';
 
@@ -22,8 +22,8 @@ export class ZohoBilling implements INodeType {
         defaults: {
             name: 'Zoho Billing',
         },
-        inputs: [NodeConnectionType.Main],
-        outputs: [NodeConnectionType.Main],
+        inputs: [NodeConnectionTypes.Main],
+        outputs: [NodeConnectionTypes.Main],
         credentials: [
             {
                 name: 'zohoApi',
@@ -804,7 +804,6 @@ export class ZohoBilling implements INodeType {
 
     async execute(this: IExecuteFunctions): Promise<INodeExecutionData[][]> {
         const baseURL = 'https://www.zohoapis.eu/billing/v1';
-        console.log('execute');
         const items = this.getInputData();
         const returnData: IDataObject[] = [];
         for (let i = 0; i < items.length; i++) {
@@ -1184,7 +1183,7 @@ export class ZohoBilling implements INodeType {
                 const responseData = await zohoSubscriptionsApiRequest.call(this, 'PUT', `${baseURL}/invoices/${invoiceId}`, body, {}, orgId);
                 returnData.push({json: responseData as IDataObject});
             } else {
-                console.error(`Unhandled operation ${operation}`); // shows list
+                throw new NodeOperationError(this.getNode(), `Operation '${operation}' is not supported`);
             }
         }
 
