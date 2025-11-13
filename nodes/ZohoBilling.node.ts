@@ -8,7 +8,7 @@ import type {
 
 import { NodeConnectionTypes, NodeOperationError } from 'n8n-workflow';
 
-import { zohoSubscriptionsApiRequest } from './GenericFunctions';
+import { getSubscriptionsBaseUrl, zohoSubscriptionsApiRequest } from './GenericFunctions';
 import {
     organizationId,
     jsonDataField,
@@ -110,7 +110,8 @@ export class ZohoBilling implements INodeType {
     };
 
     async execute(this: IExecuteFunctions): Promise<INodeExecutionData[][]> {
-        const baseURL = 'https://www.zohoapis.eu/billing/v1';
+        const credentials = await this.getCredentials('zohoApi');
+        const baseURL = getSubscriptionsBaseUrl(credentials.accessTokenUrl as string);
         const items = this.getInputData();
         const returnData: INodeExecutionData[] = [];
         for (let i = 0; i < items.length; i++) {
