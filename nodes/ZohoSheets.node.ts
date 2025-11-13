@@ -167,13 +167,14 @@ export class ZohoSheets implements INodeType {
 
     async execute(this: IExecuteFunctions): Promise<INodeExecutionData[][]> {
         const items = this.getInputData();
-        const returnData: IDataObject[] = [];
+        const returnData: INodeExecutionData[] = [];
         const operation = this.getNodeParameter('operation', 0) as string;
 
         const baseURL = 'https://sheet.zoho.eu/api/v2';
 
         for (let i = 0; i < items.length; i++) {
-            if (operation === 'create') {
+            try {
+                if (operation === 'create') {
                 const workbookName = this.getNodeParameter('workbookName', i) as string;
                 const qs: IDataObject = {
                     method: 'workbook.create',
@@ -181,7 +182,7 @@ export class ZohoSheets implements INodeType {
                 };
                 // endpoint is https://sheet.zoho.eu/api/v2/create
                 const responseData = await zohoApiRequest.call(this, 'POST', baseURL, '/create', null, qs);
-                returnData.push({json: JSON.parse(responseData)});
+                returnData.push({json: JSON.parse(responseData), pairedItem: { item: i }});
             } else if (operation === 'list') {
                 const sortOption = this.getNodeParameter('sortOption', i) as string;
                 const qs: IDataObject = {
@@ -194,7 +195,7 @@ export class ZohoSheets implements INodeType {
                 }
                 // endpoint is https://sheet.zoho.eu/api/v2/workbooks
                 const responseData = await zohoApiRequest.call(this, 'POST', baseURL, '/workbooks', null, qs);
-                returnData.push({json: JSON.parse(responseData)});
+                returnData.push({json: JSON.parse(responseData), pairedItem: { item: i }});
             } else if (operation === 'addRecords') {
                 const resourceId = this.getNodeParameter('resourceId', i) as string;
                 const worksheetName = this.getNodeParameter('worksheetName', i) as string;
@@ -216,10 +217,20 @@ export class ZohoSheets implements INodeType {
                 }
                 // endpoint is https://sheet.zoho.eu/api/v2/{$resource_id}
                 const responseData = await zohoApiRequest.call(this, 'POST', baseURL, `/${resourceId}`, null, qs);
-                returnData.push({json: JSON.parse(responseData)});
+                returnData.push({json: JSON.parse(responseData), pairedItem: { item: i }});
+                }
+            } catch (error) {
+                if (this.continueOnFail()) {
+                    returnData.push({
+                        json: { error: (error as Error).message },
+                        pairedItem: { item: i },
+                    });
+                    continue;
+                }
+                throw error;
             }
         }
 
-        return [this.helpers.returnJsonArray(returnData)];
+        return [returnData];
     }
 }
