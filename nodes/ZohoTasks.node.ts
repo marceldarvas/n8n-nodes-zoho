@@ -1,4 +1,3 @@
-
 import type {
    IExecuteFunctions,
    IDataObject,
@@ -6,6 +5,7 @@ import type {
    INodeType,
    INodeTypeDescription,
 } from 'n8n-workflow';
+
 import { NodeConnectionTypes } from 'n8n-workflow';
 
 import { zohoApiRequest } from './GenericFunctions';
@@ -155,27 +155,28 @@ export class ZohoTasks implements INodeType {
 
 	async execute(this: IExecuteFunctions): Promise<INodeExecutionData[][]> {
 		const items = this.getInputData();
-		const returnData: IDataObject[] = [];
+		const returnData: INodeExecutionData[] = [];
 		const operation = this.getNodeParameter('operation', 0) as string;
 
 		for (let i = 0; i < items.length; i++) {
-			if (operation === 'addGroupTask') {
+			try {
+				if (operation === 'addGroupTask') {
 				const groupId = this.getNodeParameter('groupId', i) as string;
 				const jsonData = this.getNodeParameter('jsonData', i) as string;
 				const body = JSON.parse(jsonData) as IDataObject;
 				const responseData = await zohoApiRequest.call(this, 'POST', `/api/tasks/groups/${groupId}`, body);
-				returnData.push(responseData as IDataObject);
+				returnData.push({json: responseData as IDataObject, pairedItem: { item: i }});
 			} else if (operation === 'addPersonalTask') {
 				const jsonData = this.getNodeParameter('jsonData', i) as string;
 				const body = JSON.parse(jsonData) as IDataObject;
 				const responseData = await zohoApiRequest.call(this, 'POST', '/api/tasks/me', body);
-				returnData.push(responseData as IDataObject);
+				returnData.push({json: responseData as IDataObject, pairedItem: { item: i }});
 			} else if (operation === 'addProject') {
 				const groupId = this.getNodeParameter('groupId', i) as string;
 				const jsonData = this.getNodeParameter('jsonData', i) as string;
 				const body = JSON.parse(jsonData) as IDataObject;
 				const responseData = await zohoApiRequest.call(this, 'POST', `/api/tasks/groups/${groupId}/projects`, body);
-				returnData.push(responseData as IDataObject);
+				returnData.push({json: responseData as IDataObject, pairedItem: { item: i }});
 			} else if (operation === 'getGroupTasks') {
 				const groupId = this.getNodeParameter('groupId', i) as string;
 				const status = this.getNodeParameter('status', i) as string;
@@ -184,7 +185,7 @@ export class ZohoTasks implements INodeType {
 					qs.status = status;
 				}
 				const responseData = await zohoApiRequest.call(this, 'GET', `/api/tasks/groups/${groupId}`, {}, qs);
-				returnData.push(responseData as IDataObject);
+				returnData.push({json: responseData as IDataObject, pairedItem: { item: i }});
 			} else if (operation === 'getPersonalTasks') {
 				const status = this.getNodeParameter('status', i) as string;
 				const qs: IDataObject = {};
@@ -192,35 +193,35 @@ export class ZohoTasks implements INodeType {
 					qs.status = status;
 				}
 				const responseData = await zohoApiRequest.call(this, 'GET', '/api/tasks/me', {}, qs);
-				returnData.push(responseData as IDataObject);
+				returnData.push({json: responseData as IDataObject, pairedItem: { item: i }});
 			} else if (operation === 'getAssignedTasks') {
 				const responseData = await zohoApiRequest.call(this, 'GET', '/api/tasks', {}, {});
-				returnData.push(responseData as IDataObject);
+				returnData.push({json: responseData as IDataObject, pairedItem: { item: i }});
 			} else if (operation === 'getCreatedTasks') {
 				const responseData = await zohoApiRequest.call(this, 'GET', '/api/tasks', {}, {});
-				returnData.push(responseData as IDataObject);
+				returnData.push({json: responseData as IDataObject, pairedItem: { item: i }});
 			} else if (operation === 'getGroupTask') {
 				const groupId = this.getNodeParameter('groupId', i) as string;
 				const taskId = this.getNodeParameter('taskId', i) as string;
 				const responseData = await zohoApiRequest.call(this, 'GET', `/api/tasks/groups/${groupId}/${taskId}`, {}, {});
-				returnData.push(responseData as IDataObject);
+				returnData.push({json: responseData as IDataObject, pairedItem: { item: i }});
 			} else if (operation === 'getPersonalTask') {
 				const taskId = this.getNodeParameter('taskId', i) as string;
 				const responseData = await zohoApiRequest.call(this, 'GET', `/api/tasks/me/${taskId}`, {}, {});
-				returnData.push(responseData as IDataObject);
+				returnData.push({json: responseData as IDataObject, pairedItem: { item: i }});
 			} else if (operation === 'getGroupSubtasks') {
 				const groupId = this.getNodeParameter('groupId', i) as string;
 				const taskId = this.getNodeParameter('taskId', i) as string;
 				const responseData = await zohoApiRequest.call(this, 'GET', `/api/tasks/groups/${groupId}/${taskId}/subtasks`, {}, {});
-				returnData.push(responseData as IDataObject);
+				returnData.push({json: responseData as IDataObject, pairedItem: { item: i }});
 			} else if (operation === 'getPersonalSubtasks') {
 				const taskId = this.getNodeParameter('taskId', i) as string;
 				const responseData = await zohoApiRequest.call(this, 'GET', `/api/tasks/me/${taskId}/subtasks`, {}, {});
-				returnData.push(responseData as IDataObject);
+				returnData.push({json: responseData as IDataObject, pairedItem: { item: i }});
 			} else if (operation === 'getGroupProjects') {
 				const groupId = this.getNodeParameter('groupId', i) as string;
 				const responseData = await zohoApiRequest.call(this, 'GET', `/api/tasks/groups/${groupId}/projects`, {}, {});
-				returnData.push(responseData as IDataObject);
+				returnData.push({json: responseData as IDataObject, pairedItem: { item: i }});
 			} else if (operation === 'getProjectTasks') {
 				const groupId = this.getNodeParameter('groupId', i) as string;
 				const projectId = this.getNodeParameter('projectId', i) as string;
@@ -230,14 +231,14 @@ export class ZohoTasks implements INodeType {
 					qs.status = status;
 				}
 				const responseData = await zohoApiRequest.call(this, 'GET', `/api/tasks/groups/${groupId}/projects/${projectId}`, {}, qs);
-				returnData.push(responseData as IDataObject);
+				returnData.push({json: responseData as IDataObject, pairedItem: { item: i }});
 			} else if (operation === 'getGroups') {
 				const responseData = await zohoApiRequest.call(this, 'GET', '/api/tasks/groups', {}, {});
-				returnData.push(responseData as IDataObject);
+				returnData.push({json: responseData as IDataObject, pairedItem: { item: i }});
 			} else if (operation === 'getGroupMembers') {
 				const groupId = this.getNodeParameter('groupId', i) as string;
 				const responseData = await zohoApiRequest.call(this, 'GET', `/api/tasks/groups/${groupId}/members`, {}, {});
-				returnData.push(responseData as IDataObject);
+				returnData.push({json: responseData as IDataObject, pairedItem: { item: i }});
 			} else if (
 				operation === 'updateTaskTitle' ||
 				operation === 'updateTaskDescription' ||
@@ -255,37 +256,41 @@ export class ZohoTasks implements INodeType {
 				const jsonData = this.getNodeParameter('jsonData', i) as string;
 				const body = JSON.parse(jsonData) as IDataObject;
 				const responseData = await zohoApiRequest.call(this, 'PUT', `/api/tasks/groups/${groupId}/${taskId}`, body);
-				returnData.push(responseData as IDataObject);
+				returnData.push({json: responseData as IDataObject, pairedItem: { item: i }});
 			} else if (operation === 'editProject') {
 				const groupId = this.getNodeParameter('groupId', i) as string;
 				const projectId = this.getNodeParameter('projectId', i) as string;
 				const jsonData = this.getNodeParameter('jsonData', i) as string;
 				const body = JSON.parse(jsonData) as IDataObject;
 				const responseData = await zohoApiRequest.call(this, 'PUT', `/api/tasks/groups/${groupId}/projects/${projectId}`, body);
-				returnData.push(responseData as IDataObject);
+				returnData.push({json: responseData as IDataObject, pairedItem: { item: i }});
 			} else if (operation === 'deleteProject') {
 				const groupId = this.getNodeParameter('groupId', i) as string;
 				const projectId = this.getNodeParameter('projectId', i) as string;
 				const responseData = await zohoApiRequest.call(this, 'DELETE', `/api/tasks/groups/${groupId}/projects/${projectId}`, {}, {});
-				returnData.push(responseData as IDataObject);
+				returnData.push({json: responseData as IDataObject, pairedItem: { item: i }});
 			} else if (operation === 'deleteGroupTask') {
 				const groupId = this.getNodeParameter('groupId', i) as string;
 				const taskId = this.getNodeParameter('taskId', i) as string;
 				const responseData = await zohoApiRequest.call(this, 'DELETE', `/api/tasks/groups/${groupId}/${taskId}`, {}, {});
-				returnData.push(responseData as IDataObject);
+				returnData.push({json: responseData as IDataObject, pairedItem: { item: i }});
 			} else if (operation === 'deletePersonalTask') {
 				const taskId = this.getNodeParameter('taskId', i) as string;
 				const responseData = await zohoApiRequest.call(this, 'DELETE', `/api/tasks/me/${taskId}`, {}, {});
-				returnData.push(responseData as IDataObject);
+				returnData.push({json: responseData as IDataObject, pairedItem: { item: i }});
+			}
+			} catch (error) {
+				if (this.continueOnFail()) {
+					returnData.push({
+						json: { error: (error as Error).message },
+						pairedItem: { item: i },
+					});
+					continue;
+				}
+				throw error;
 			}
 		}
 
-		// Parse any raw JSON string responses into objects
-		const parsedData = returnData.map(item =>
-			typeof item === 'string'
-				? JSON.parse(item)
-				: (item as IDataObject),
-		) as IDataObject[];
-		return [this.helpers.returnJsonArray(parsedData)];
+		return [returnData];
 	}
 }
