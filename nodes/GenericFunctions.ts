@@ -148,10 +148,8 @@ export async function zohoSubscriptionsApiRequest(
     if (Object.keys(body).length) {
         options.body = body;
     }
-    console.log('Subscription Request Options',options);
     try {
         const responseData = await this.helpers.request!(options);
-        console.log(responseData);
         throwOnErrorStatus.call(this, responseData);
         return responseData;
     } catch (error) {
