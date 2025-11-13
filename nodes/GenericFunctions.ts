@@ -39,6 +39,25 @@ export function throwOnErrorStatus(
 }
 
 /**
+ * Map Zoho OAuth2 token URL to the appropriate Subscriptions API base URL.
+ * Supports all Zoho regions: US, EU, AU, IN, CN.
+ *
+ * @param accessTokenUrl - The OAuth2 token URL from credentials
+ * @returns The corresponding Subscriptions API base URL
+ */
+export function getSubscriptionsBaseUrl(accessTokenUrl: string): string {
+    const urlMap: { [key: string]: string } = {
+        'https://accounts.zoho.com/oauth/v2/token': 'https://www.zohoapis.com/billing/v1',
+        'https://accounts.zoho.eu/oauth/v2/token': 'https://www.zohoapis.eu/billing/v1',
+        'https://accounts.zoho.com.au/oauth/v2/token': 'https://www.zohoapis.com.au/billing/v1',
+        'https://accounts.zoho.in/oauth/v2/token': 'https://www.zohoapis.in/billing/v1',
+        'https://accounts.zoho.com.cn/oauth/v2/token': 'https://www.zohoapis.com.cn/billing/v1',
+    };
+
+    return urlMap[accessTokenUrl] || urlMap['https://accounts.zoho.com/oauth/v2/token'];
+}
+
+/**
  * Retrieve and refresh Zoho OAuth2 token data.
  */
 async function getAccessTokenData(
