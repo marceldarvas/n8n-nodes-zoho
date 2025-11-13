@@ -274,6 +274,14 @@ Detailed API documentation is available in the `docs/` directory:
 - [Email API Documentation](docs/Email.md) - Complete email functionality reference
 - [Tasks API Documentation](docs/Tasks.md) - Task and project management details
 
+### Developer Documentation
+
+For developers looking to extend this package with new Zoho services:
+- **[Adding New Zoho Applications](docs/ADDING_NEW_ZOHO_APPS.md)** - Comprehensive guide for implementing new Zoho nodes
+- **[Quick Start Guide](docs/QUICK_START_NEW_NODE.md)** - Condensed checklist for experienced developers
+
+These guides are based on the official [Zoho Calendar implementation pattern](https://github.com/liamdmcgarrigle/n8n-nodes-zoho-calendar) and provide step-by-step instructions for adding new Zoho services to this package.
+
 ## Development
 
 ### Project Structure
