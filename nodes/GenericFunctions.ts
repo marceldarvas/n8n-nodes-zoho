@@ -16,11 +16,25 @@ import type {
 export function throwOnErrorStatus(
     this: IExecuteFunctions | IHookFunctions | ILoadOptionsFunctions,
     responseData: {
+        code?: number;
+        message?: string;
         data?: Array<{ status: string; message: string }>;
     },
 ) {
-    if (responseData?.data?.[0].status === 'error') {
-        throw new NodeOperationError(this.getNode(), responseData as Error);
+    // Check for error status in response
+    if (responseData?.code && responseData.code !== 0) {
+        throw new NodeOperationError(
+            this.getNode(),
+            `Zoho API error: ${responseData.message || 'Unknown error'}`,
+        );
+    }
+
+    // Check for data-level errors
+    if (responseData?.data?.[0]?.status === 'error') {
+        throw new NodeOperationError(
+            this.getNode(),
+            responseData.data[0].message || 'API returned error status',
+        );
     }
 }
 
@@ -136,6 +150,7 @@ export async function zohoSubscriptionsApiRequest(
     }
     try {
         const responseData = await this.helpers.request!(options);
+        throwOnErrorStatus.call(this, responseData);
         return responseData;
     } catch (error) {
         throw new NodeApiError(this.getNode(), error as JsonObject);
