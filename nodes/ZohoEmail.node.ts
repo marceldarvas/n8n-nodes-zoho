@@ -4,7 +4,7 @@ import {
     type INodeExecutionData,
     type INodeType,
     type INodeTypeDescription,
-    NodeConnectionType,
+    NodeConnectionTypes,
 } from 'n8n-workflow';
 
 import { zohoApiRequest } from './GenericFunctions';
@@ -21,8 +21,8 @@ export class ZohoEmail implements INodeType {
         defaults: {
             name: 'Zoho Email',
         },
-        inputs: [NodeConnectionType.Main],
-        outputs: [NodeConnectionType.Main],
+        inputs: [NodeConnectionTypes.Main],
+        outputs: [NodeConnectionTypes.Main],
         credentials: [
             {
                 name: 'zohoApi',
@@ -259,12 +259,13 @@ export class ZohoEmail implements INodeType {
 
     async execute(this: IExecuteFunctions): Promise<INodeExecutionData[][]> {
         const items = this.getInputData();
-        const returnData: IDataObject[] = [];
+        const returnData: INodeExecutionData[] = [];
         const operation = this.getNodeParameter('operation', 0) as string;
         const baseURL = 'https://mail.zoho.com/api';
 
         for (let i = 0; i < items.length; i++) {
-            if (operation === 'sendEmail') {
+            try {
+                if (operation === 'sendEmail') {
                 const accountId = this.getNodeParameter('accountId', i) as string;
                 const fromAddress = this.getNodeParameter('fromAddress', i) as string;
                 const toAddress = this.getNodeParameter('toAddress', i) as string;
@@ -314,10 +315,23 @@ export class ZohoEmail implements INodeType {
                     endpoint,
                     body,
                 );
-                returnData.push(responseData as IDataObject);
+                returnData.push({
+                    json: responseData as IDataObject,
+                    pairedItem: { item: i },
+                });
+                }
+            } catch (error) {
+                if (this.continueOnFail()) {
+                    returnData.push({
+                        json: { error: (error as Error).message },
+                        pairedItem: { item: i },
+                    });
+                    continue;
+                }
+                throw error;
             }
         }
 
-        return [this.helpers.returnJsonArray(returnData)];
+        return [returnData];
     }
 }
