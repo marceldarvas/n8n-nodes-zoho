@@ -1,10 +1,12 @@
+import type {
+    IDataObject,
+    IExecuteFunctions,
+    INodeExecutionData,
+    INodeType,
+    INodeTypeDescription,
+} from 'n8n-workflow';
 import {
-    type IDataObject,
-    type IExecuteFunctions,
-    type INodeExecutionData,
-    type INodeType,
-    type INodeTypeDescription,
-    NodeConnectionType,
+    NodeConnectionTypes,
     NodeOperationError,
 } from 'n8n-workflow';
 
@@ -22,8 +24,8 @@ export class ZohoBilling implements INodeType {
         defaults: {
             name: 'Zoho Billing',
         },
-        inputs: [NodeConnectionType.Main],
-        outputs: [NodeConnectionType.Main],
+        inputs: [NodeConnectionTypes.Main],
+        outputs: [NodeConnectionTypes.Main],
         credentials: [
             {
                 name: 'zohoApi',

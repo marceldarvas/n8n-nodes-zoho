@@ -1,12 +1,12 @@
 
-import {
-   type IExecuteFunctions,
-   type IDataObject,
-   type INodeExecutionData,
-   type INodeType,
-   type INodeTypeDescription,
-   NodeConnectionType
+import type {
+   IExecuteFunctions,
+   IDataObject,
+   INodeExecutionData,
+   INodeType,
+   INodeTypeDescription,
 } from 'n8n-workflow';
+import { NodeConnectionTypes } from 'n8n-workflow';
 
 import { zohoApiRequest } from './GenericFunctions';
 
@@ -22,8 +22,8 @@ export class ZohoTasks implements INodeType {
 		defaults: {
 			name: 'Zoho Tasks',
 		},
-		inputs: [NodeConnectionType.Main],
-		outputs: [NodeConnectionType.Main],
+		inputs: [NodeConnectionTypes.Main],
+		outputs: [NodeConnectionTypes.Main],
 		credentials: [
 			{
 				name: 'zohoApi',
