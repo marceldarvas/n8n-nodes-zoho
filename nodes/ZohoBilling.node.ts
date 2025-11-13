@@ -383,32 +383,34 @@ export class ZohoBilling implements INodeType {
                 ],
             },
             {
-                displayName: 'Page',
-                name: 'page',
-                type: 'number',
-                typeOptions: {minValue: 1},
-                default: 1,
-                description: 'Page number to retrieve',
+                displayName: 'Return All',
+                name: 'returnAll',
+                type: 'boolean',
                 displayOptions: {
                     show: {
                         resource: ['subscription'],
                         operation: ['listSubscriptions'],
                     },
                 },
+                default: false,
+                description: 'Whether to return all results or only up to a given limit',
             },
             {
-                displayName: 'Per Page',
-                name: 'perPage',
+                displayName: 'Limit',
+                name: 'limit',
                 type: 'number',
-                typeOptions: {minValue: 1, maxValue: 200},
-                default: 200,
-                description: 'Number of records per page',
                 displayOptions: {
                     show: {
                         resource: ['subscription'],
                         operation: ['listSubscriptions'],
+                        returnAll: [false],
                     },
                 },
+                typeOptions: {
+                    minValue: 1,
+                },
+                default: 50,
+                description: 'Max number of results to return',
             },
             {
                 displayName: 'Invoice ID',
@@ -439,32 +441,34 @@ export class ZohoBilling implements INodeType {
                 description: 'ID of the payment',
             },
             {
-                displayName: 'Page',
-                name: 'page',
-                type: 'number',
-                typeOptions: {minValue: 1},
-                default: 1,
-                description: 'Page number to retrieve',
+                displayName: 'Return All',
+                name: 'returnAll',
+                type: 'boolean',
                 displayOptions: {
                     show: {
                         resource: ['customer'],
                         operation: ['listCustomers'],
                     },
                 },
+                default: false,
+                description: 'Whether to return all results or only up to a given limit',
             },
             {
-                displayName: 'Per Page',
-                name: 'perPage',
+                displayName: 'Limit',
+                name: 'limit',
                 type: 'number',
-                typeOptions: {minValue: 1, maxValue: 200},
-                default: 200,
-                description: 'Number of records per page',
                 displayOptions: {
                     show: {
                         resource: ['customer'],
                         operation: ['listCustomers'],
+                        returnAll: [false],
                     },
                 },
+                typeOptions: {
+                    minValue: 1,
+                },
+                default: 50,
+                description: 'Max number of results to return',
             },
             {
                 displayName: 'Filters',
