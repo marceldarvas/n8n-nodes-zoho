@@ -144,3 +144,51 @@ export async function zohoSubscriptionsApiRequest(
     }
 }
 
+/**
+ * Make an authenticated API request to Zoho Calendar API.
+ */
+export async function zohoCalendarApiRequest(
+    this: IExecuteFunctions | IHookFunctions | ILoadOptionsFunctions,
+    method: IHttpRequestMethods,
+    endpoint: string,
+    body: IDataObject = {},
+    qs: IDataObject = {},
+) {
+    const {access_token} = await getAccessTokenData.call(this);
+
+    // Zoho Calendar API base URL
+    const baseUrl = 'https://calendar.zoho.com/api/v1';
+
+    const options: IRequestOptions = {
+        method,
+        url: `${baseUrl}${endpoint}`,
+        headers: {
+            Authorization: 'Zoho-oauthtoken ' + access_token,
+            'Content-Type': 'application/json',
+        },
+        json: true,
+    };
+
+    if (Object.keys(qs).length) {
+        options.qs = qs;
+    }
+
+    if (Object.keys(body).length) {
+        options.body = body;
+    }
+
+    try {
+        const responseData = await this.helpers.request!(options);
+        return responseData;
+    } catch (error) {
+        const errorData = (error as any).cause?.data;
+        const args = errorData
+            ? {
+                message: errorData.message || 'The Zoho Calendar API returned an error.',
+                description: JSON.stringify(errorData, null, 2),
+            }
+            : undefined;
+        throw new NodeApiError(this.getNode(), error as JsonObject, args);
+    }
+}
+

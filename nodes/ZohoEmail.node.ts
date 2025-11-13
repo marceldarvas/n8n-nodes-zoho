@@ -4,7 +4,6 @@ import {
     type INodeExecutionData,
     type INodeType,
     type INodeTypeDescription,
-    NodeConnectionType,
 } from 'n8n-workflow';
 
 import { zohoApiRequest } from './GenericFunctions';
@@ -21,8 +20,8 @@ export class ZohoEmail implements INodeType {
         defaults: {
             name: 'Zoho Email',
         },
-        inputs: [NodeConnectionType.Main],
-        outputs: [NodeConnectionType.Main],
+        inputs: ['main'],
+        outputs: ['main'],
         credentials: [
             {
                 name: 'zohoApi',
