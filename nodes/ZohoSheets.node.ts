@@ -4,7 +4,7 @@ import {
     type INodeExecutionData,
     type INodeType,
     type INodeTypeDescription,
-    NodeConnectionType, // must be NodeConnectionType, not NodeConnectionTypes !
+    NodeConnectionTypes,
     NodeOperationError,
 } from 'n8n-workflow';
 
@@ -22,8 +22,8 @@ export class ZohoSheets implements INodeType {
         defaults: {
             name: 'Zoho Sheet',
         },
-        inputs: [NodeConnectionType.Main],
-        outputs: [NodeConnectionType.Main],
+        inputs: [NodeConnectionTypes.Main],
+        outputs: [NodeConnectionTypes.Main],
         credentials: [
             {
                 name: 'zohoApi',

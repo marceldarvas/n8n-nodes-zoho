@@ -1,14 +1,16 @@
 import {
     type IDataObject,
     type IExecuteFunctions,
+    type ILoadOptionsFunctions,
     type INodeExecutionData,
+    type INodePropertyOptions,
     type INodeType,
     type INodeTypeDescription,
-    NodeConnectionType,
+    NodeConnectionTypes,
     NodeOperationError,
 } from 'n8n-workflow';
 
-import {zohoSubscriptionsApiRequest} from './GenericFunctions';
+import {getSubscriptionsBaseUrl, zohoSubscriptionsApiRequest} from './GenericFunctions';
 
 export class ZohoBilling implements INodeType {
     description: INodeTypeDescription = {
@@ -22,8 +24,8 @@ export class ZohoBilling implements INodeType {
         defaults: {
             name: 'Zoho Billing',
         },
-        inputs: [NodeConnectionType.Main],
-        outputs: [NodeConnectionType.Main],
+        inputs: [NodeConnectionTypes.Main],
+        outputs: [NodeConnectionTypes.Main],
         credentials: [
             {
                 name: 'zohoApi',
@@ -232,17 +234,23 @@ export class ZohoBilling implements INodeType {
                 default: 'listItems',
             },
             {
-                displayName: 'Organization ID',
+                displayName: 'Organization',
                 name: 'organizationId',
-                type: 'string',
+                type: 'options',
+                typeOptions: {
+                    loadOptionsMethod: 'getOrganizations',
+                },
                 required: true,
                 default: '',
-                description: 'Zoho Subscriptions organization ID',
+                description: 'The Zoho Subscriptions organization to use',
             },
             {
-                displayName: 'Product ID',
+                displayName: 'Product',
                 name: 'productId',
-                type: 'string',
+                type: 'options',
+                typeOptions: {
+                    loadOptionsMethod: 'getProducts',
+                },
                 default: '',
                 required: true,
                 displayOptions: {
@@ -251,12 +259,15 @@ export class ZohoBilling implements INodeType {
                         operation: ['getProduct', 'updateProduct', 'deleteProduct'],
                     },
                 },
-                description: 'ID of the product',
+                description: 'The product to operate on',
             },
             {
-                displayName: 'Plan ID',
+                displayName: 'Plan',
                 name: 'planId',
-                type: 'string',
+                type: 'options',
+                typeOptions: {
+                    loadOptionsMethod: 'getPlans',
+                },
                 default: '',
                 required: true,
                 displayOptions: {
@@ -265,7 +276,7 @@ export class ZohoBilling implements INodeType {
                         operation: ['getPlan', 'updatePlan', 'deletePlan'],
                     },
                 },
-                description: 'ID of the plan',
+                description: 'The plan to operate on',
             },
             {
                 displayName: 'Add-on ID',
@@ -594,9 +605,12 @@ export class ZohoBilling implements INodeType {
                 },
             },
             {
-                displayName: 'Customer ID',
+                displayName: 'Customer',
                 name: 'customerId',
-                type: 'string',
+                type: 'options',
+                typeOptions: {
+                    loadOptionsMethod: 'getCustomers',
+                },
                 default: '',
                 required: true,
                 displayOptions: {
@@ -618,7 +632,7 @@ export class ZohoBilling implements INodeType {
                         ],
                     },
                 },
-                description: 'CRM customer ID',
+                description: 'The customer to operate on',
             },
             {
                 displayName: 'Reference ID',
@@ -800,6 +814,141 @@ export class ZohoBilling implements INodeType {
                 description: 'Filter by invoice status',
             },
         ],
+    };
+
+    methods = {
+        loadOptions: {
+            /**
+             * Get list of organizations from Zoho Subscriptions
+             */
+            async getOrganizations(this: ILoadOptionsFunctions): Promise<INodePropertyOptions[]> {
+                try {
+                    const credentials = await this.getCredentials('zohoApi');
+                    const baseURL = getSubscriptionsBaseUrl(credentials.accessTokenUrl as string);
+
+                    const responseData = await zohoSubscriptionsApiRequest.call(
+                        this,
+                        'GET',
+                        `${baseURL}/organizations`,
+                        {},
+                        {},
+                        '', // Empty org ID for organizations endpoint
+                    );
+
+                    if (responseData.organizations && Array.isArray(responseData.organizations)) {
+                        return responseData.organizations.map((org: IDataObject) => ({
+                            name: org.name as string,
+                            value: org.organization_id as string,
+                        }));
+                    }
+                    return [];
+                } catch (error) {
+                    throw new NodeOperationError(this.getNode(), 'Failed to fetch organizations');
+                }
+            },
+
+            /**
+             * Get list of customers from Zoho Subscriptions
+             */
+            async getCustomers(this: ILoadOptionsFunctions): Promise<INodePropertyOptions[]> {
+                try {
+                    const orgId = this.getNodeParameter('organizationId') as string;
+                    if (!orgId) {
+                        throw new NodeOperationError(this.getNode(), 'Organization ID is required to fetch customers');
+                    }
+
+                    const credentials = await this.getCredentials('zohoApi');
+                    const baseURL = getSubscriptionsBaseUrl(credentials.accessTokenUrl as string);
+
+                    const responseData = await zohoSubscriptionsApiRequest.call(
+                        this,
+                        'GET',
+                        `${baseURL}/customers`,
+                        {},
+                        { per_page: 200 },
+                        orgId,
+                    );
+
+                    if (responseData.customers && Array.isArray(responseData.customers)) {
+                        return responseData.customers.map((customer: IDataObject) => ({
+                            name: customer.display_name as string,
+                            value: customer.customer_id as string,
+                        }));
+                    }
+                    return [];
+                } catch (error) {
+                    throw new NodeOperationError(this.getNode(), 'Failed to fetch customers');
+                }
+            },
+
+            /**
+             * Get list of products from Zoho Subscriptions
+             */
+            async getProducts(this: ILoadOptionsFunctions): Promise<INodePropertyOptions[]> {
+                try {
+                    const orgId = this.getNodeParameter('organizationId') as string;
+                    if (!orgId) {
+                        throw new NodeOperationError(this.getNode(), 'Organization ID is required to fetch products');
+                    }
+
+                    const credentials = await this.getCredentials('zohoApi');
+                    const baseURL = getSubscriptionsBaseUrl(credentials.accessTokenUrl as string);
+
+                    const responseData = await zohoSubscriptionsApiRequest.call(
+                        this,
+                        'GET',
+                        `${baseURL}/products`,
+                        {},
+                        { per_page: 200 },
+                        orgId,
+                    );
+
+                    if (responseData.products && Array.isArray(responseData.products)) {
+                        return responseData.products.map((product: IDataObject) => ({
+                            name: product.name as string,
+                            value: product.product_id as string,
+                        }));
+                    }
+                    return [];
+                } catch (error) {
+                    throw new NodeOperationError(this.getNode(), 'Failed to fetch products');
+                }
+            },
+
+            /**
+             * Get list of plans from Zoho Subscriptions
+             */
+            async getPlans(this: ILoadOptionsFunctions): Promise<INodePropertyOptions[]> {
+                try {
+                    const orgId = this.getNodeParameter('organizationId') as string;
+                    if (!orgId) {
+                        throw new NodeOperationError(this.getNode(), 'Organization ID is required to fetch plans');
+                    }
+
+                    const credentials = await this.getCredentials('zohoApi');
+                    const baseURL = getSubscriptionsBaseUrl(credentials.accessTokenUrl as string);
+
+                    const responseData = await zohoSubscriptionsApiRequest.call(
+                        this,
+                        'GET',
+                        `${baseURL}/plans`,
+                        {},
+                        { per_page: 200 },
+                        orgId,
+                    );
+
+                    if (responseData.plans && Array.isArray(responseData.plans)) {
+                        return responseData.plans.map((plan: IDataObject) => ({
+                            name: plan.name as string,
+                            value: plan.plan_code as string,
+                        }));
+                    }
+                    return [];
+                } catch (error) {
+                    throw new NodeOperationError(this.getNode(), 'Failed to fetch plans');
+                }
+            },
+        },
     };
 
     async execute(this: IExecuteFunctions): Promise<INodeExecutionData[][]> {
