@@ -200,6 +200,47 @@ export async function zohoSubscriptionsApiRequest(
 }
 
 /**
+ * Make an authenticated API request to Zoho Subscriptions and automatically paginate through all results.
+ */
+export async function zohoSubscriptionsApiRequestAllItems(
+    this: IExecuteFunctions | IHookFunctions | ILoadOptionsFunctions,
+    method: IHttpRequestMethods,
+    endpoint: string,
+    body: IDataObject = {},
+    qs: IDataObject = {},
+    organizationId: string,
+    dataKey: string = 'data',
+): Promise<any> {
+    const returnData: IDataObject[] = [];
+
+    let responseData;
+    qs.page = 1;
+    qs.per_page = qs.per_page || 200;
+
+    do {
+        responseData = await zohoSubscriptionsApiRequest.call(
+            this,
+            method,
+            endpoint,
+            body,
+            qs,
+            organizationId,
+        );
+
+        if (responseData[dataKey]) {
+            returnData.push(...responseData[dataKey]);
+        }
+
+        qs.page = (qs.page as number) + 1;
+    } while (
+        responseData.page_context &&
+        responseData.page_context.has_more_page === true
+    );
+
+    return returnData;
+}
+
+/**
  * Make an authenticated API request to Zoho Calendar API.
  */
 export async function zohoCalendarApiRequest(

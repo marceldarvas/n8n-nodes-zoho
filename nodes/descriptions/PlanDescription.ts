@@ -1,4 +1,5 @@
 import type { INodeProperties } from 'n8n-workflow';
+import { paginationFields } from './SharedFields';
 
 export const planOperations: INodeProperties[] = [
 	{
@@ -38,4 +39,5 @@ export const planFields: INodeProperties[] = [
 		},
 		description: 'The plan to operate on',
 	},
+	...paginationFields('plan', 'listPlans'),
 ];
