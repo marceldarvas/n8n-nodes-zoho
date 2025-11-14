@@ -236,4 +236,317 @@ export const customerFields: INodeProperties[] = [
 		},
 		description: 'Comma-separated list of customer IDs',
 	},
+	// Create Customer Required Fields
+	{
+		displayName: 'Display Name',
+		name: 'displayName',
+		type: 'string',
+		required: true,
+		default: '',
+		displayOptions: {
+			show: {
+				resource: ['customer'],
+				operation: ['createCustomer'],
+			},
+		},
+		description: 'Display name of the customer',
+	},
+	// Create/Update Customer Optional Fields
+	{
+		displayName: 'Additional Fields',
+		name: 'additionalFields',
+		type: 'collection',
+		placeholder: 'Add Field',
+		default: {},
+		displayOptions: {
+			show: {
+				resource: ['customer'],
+				operation: ['createCustomer', 'updateCustomer'],
+			},
+		},
+		options: [
+			{
+				displayName: 'Salutation',
+				name: 'salutation',
+				type: 'options',
+				options: [
+					{ name: 'Mr', value: 'Mr' },
+					{ name: 'Mrs', value: 'Mrs' },
+					{ name: 'Ms', value: 'Ms' },
+					{ name: 'Miss', value: 'Miss' },
+					{ name: 'Dr', value: 'Dr' },
+				],
+				default: 'Mr',
+				description: 'Salutation for the customer',
+			},
+			{
+				displayName: 'First Name',
+				name: 'first_name',
+				type: 'string',
+				default: '',
+				description: 'First name of the customer',
+			},
+			{
+				displayName: 'Last Name',
+				name: 'last_name',
+				type: 'string',
+				default: '',
+				description: 'Last name of the customer',
+			},
+			{
+				displayName: 'Email',
+				name: 'email',
+				type: 'string',
+				default: '',
+				description: 'Email address of the customer',
+			},
+			{
+				displayName: 'Company Name',
+				name: 'company_name',
+				type: 'string',
+				default: '',
+				description: 'Company name of the customer',
+			},
+			{
+				displayName: 'Phone',
+				name: 'phone',
+				type: 'string',
+				default: '',
+				description: 'Phone number of the customer',
+			},
+			{
+				displayName: 'Mobile',
+				name: 'mobile',
+				type: 'string',
+				default: '',
+				description: 'Mobile number of the customer',
+			},
+			{
+				displayName: 'Website',
+				name: 'website',
+				type: 'string',
+				default: '',
+				description: 'Website URL of the customer',
+			},
+			{
+				displayName: 'Twitter',
+				name: 'twitter',
+				type: 'string',
+				default: '',
+				description: 'Twitter handle or URL',
+			},
+			{
+				displayName: 'Facebook',
+				name: 'facebook',
+				type: 'string',
+				default: '',
+				description: 'Facebook profile or page URL',
+			},
+			{
+				displayName: 'Currency Code',
+				name: 'currency_code',
+				type: 'string',
+				default: '',
+				description: 'Currency code (e.g., USD, EUR, INR)',
+			},
+			{
+				displayName: 'Notes',
+				name: 'notes',
+				type: 'string',
+				typeOptions: {
+					rows: 4,
+				},
+				default: '',
+				description: 'Notes about the customer',
+			},
+			{
+				displayName: 'Payment Terms',
+				name: 'payment_terms',
+				type: 'number',
+				default: 0,
+				description: 'Number of days within which the customer has to pay',
+			},
+			{
+				displayName: 'Payment Terms Label',
+				name: 'payment_terms_label',
+				type: 'string',
+				default: '',
+				description: 'Label for payment terms (e.g., "Due on Receipt", "Net 30")',
+			},
+			{
+				displayName: 'ACH Supported',
+				name: 'ach_supported',
+				type: 'boolean',
+				default: false,
+				description: 'Whether ACH payment is supported for this customer',
+			},
+		],
+	},
+	//  Billing Address
+	{
+		displayName: 'Billing Address',
+		name: 'billingAddress',
+		type: 'fixedCollection',
+		default: {},
+		placeholder: 'Add Billing Address',
+		displayOptions: {
+			show: {
+				resource: ['customer'],
+				operation: ['createCustomer', 'updateCustomer'],
+			},
+		},
+		options: [
+			{
+				displayName: 'Address',
+				name: 'address',
+				values: [
+					{
+						displayName: 'Street',
+						name: 'street',
+						type: 'string',
+						default: '',
+						description: 'Street address',
+					},
+					{
+						displayName: 'City',
+						name: 'city',
+						type: 'string',
+						default: '',
+						description: 'City',
+					},
+					{
+						displayName: 'State',
+						name: 'state',
+						type: 'string',
+						default: '',
+						description: 'State or province',
+					},
+					{
+						displayName: 'Zip',
+						name: 'zip',
+						type: 'string',
+						default: '',
+						description: 'ZIP or postal code',
+					},
+					{
+						displayName: 'Country',
+						name: 'country',
+						type: 'string',
+						default: '',
+						description: 'Country',
+					},
+					{
+						displayName: 'Fax',
+						name: 'fax',
+						type: 'string',
+						default: '',
+						description: 'Fax number',
+					},
+				],
+			},
+		],
+	},
+	// Shipping Address
+	{
+		displayName: 'Shipping Address',
+		name: 'shippingAddress',
+		type: 'fixedCollection',
+		default: {},
+		placeholder: 'Add Shipping Address',
+		displayOptions: {
+			show: {
+				resource: ['customer'],
+				operation: ['createCustomer', 'updateCustomer'],
+			},
+		},
+		options: [
+			{
+				displayName: 'Address',
+				name: 'address',
+				values: [
+					{
+						displayName: 'Street',
+						name: 'street',
+						type: 'string',
+						default: '',
+						description: 'Street address',
+					},
+					{
+						displayName: 'City',
+						name: 'city',
+						type: 'string',
+						default: '',
+						description: 'City',
+					},
+					{
+						displayName: 'State',
+						name: 'state',
+						type: 'string',
+						default: '',
+						description: 'State or province',
+					},
+					{
+						displayName: 'Zip',
+						name: 'zip',
+						type: 'string',
+						default: '',
+						description: 'ZIP or postal code',
+					},
+					{
+						displayName: 'Country',
+						name: 'country',
+						type: 'string',
+						default: '',
+						description: 'Country',
+					},
+					{
+						displayName: 'Fax',
+						name: 'fax',
+						type: 'string',
+						default: '',
+						description: 'Fax number',
+					},
+				],
+			},
+		],
+	},
+	// Custom Fields
+	{
+		displayName: 'Custom Fields',
+		name: 'customFields',
+		type: 'fixedCollection',
+		default: { fields: [] },
+		typeOptions: {
+			multipleValues: true,
+		},
+		placeholder: 'Add Custom Field',
+		displayOptions: {
+			show: {
+				resource: ['customer'],
+				operation: ['createCustomer', 'updateCustomer'],
+			},
+		},
+		options: [
+			{
+				displayName: 'Field',
+				name: 'fields',
+				values: [
+					{
+						displayName: 'Label',
+						name: 'label',
+						type: 'string',
+						default: '',
+						description: 'Custom field label',
+					},
+					{
+						displayName: 'Value',
+						name: 'value',
+						type: 'string',
+						default: '',
+						description: 'Custom field value',
+					},
+				],
+			},
+		],
+	},
 ];

@@ -11,25 +11,31 @@ import {NodeApiError, NodeOperationError} from 'n8n-workflow';
 
 import type {
     ZohoOAuth2ApiCredentials,
+    ZohoApiErrorData,
 } from './types';
 
+/**
+ * Check Zoho API response for error status and throw appropriate error
+ * @param responseData - The API response data to check
+ * @throws {NodeOperationError} When the response contains an error status
+ */
 export function throwOnErrorStatus(
     this: IExecuteFunctions | IHookFunctions | ILoadOptionsFunctions,
     responseData: {
         code?: number;
         message?: string;
-        data?: Array<{ status: string; message: string }>;
+        data?: ZohoApiErrorData[];
     },
-) {
-    // Check for error status in response
+): void {
+    // Check for top-level error codes (non-zero code indicates error)
     if (responseData?.code && responseData.code !== 0) {
         throw new NodeOperationError(
             this.getNode(),
-            `Zoho API error: ${responseData.message || 'Unknown error'}`,
+            `Zoho API error (code ${responseData.code}): ${responseData.message || 'Unknown error'}`,
         );
     }
 
-    // Check for data-level errors
+    // Check for data-level errors (array format)
     if (responseData?.data?.[0]?.status === 'error') {
         throw new NodeOperationError(
             this.getNode(),
@@ -91,12 +97,20 @@ async function getAccessTokenData(
         refresh_token = tokenResponse.refresh_token || refresh_token;
         api_domain = tokenResponse.api_domain;
         expires_in = tokenResponse.expires_in;
-    } else {
-        // console.log('Getting cached token');
     }
     return {api_domain, access_token, refresh_token, expires_in};
 }
 
+/**
+ * Make an authenticated API request to Zoho APIs (Mail, Tasks, Sheets, etc.)
+ * @param method - HTTP method (GET, POST, PUT, DELETE, etc.)
+ * @param baseURL - Base URL for the API endpoint
+ * @param uri - URI path for the specific endpoint
+ * @param body - Request body data
+ * @param qs - Query string parameters
+ * @returns Promise resolving to the API response data
+ * @throws {NodeApiError} When the API request fails
+ */
 export async function zohoApiRequest(
     this: IExecuteFunctions | IHookFunctions | ILoadOptionsFunctions,
     method: IHttpRequestMethods,
@@ -104,7 +118,7 @@ export async function zohoApiRequest(
     uri: string,
     body: IDataObject = {},
     qs: IDataObject = {},
-) {
+): Promise<IDataObject> {
     const {access_token} = await getAccessTokenData.call(this);
     const options: IRequestOptions = {
         method,
@@ -142,6 +156,15 @@ export async function zohoApiRequest(
 
 /**
  * Make an authenticated API request to Zoho Subscriptions (Billing) API.
+ * Automatically includes the organization ID header required by the Subscriptions API.
+ * @param method - HTTP method (GET, POST, PUT, DELETE, etc.)
+ * @param uri - Full URI for the API endpoint (including base URL)
+ * @param body - Request body data
+ * @param qs - Query string parameters
+ * @param organizationId - Zoho Subscriptions organization ID (required header)
+ * @returns Promise resolving to the API response data
+ * @throws {NodeApiError} When the API request fails
+ * @see https://www.zoho.com/subscriptions/api/v1/
  */
 export async function zohoSubscriptionsApiRequest(
     this: IExecuteFunctions | IHookFunctions | ILoadOptionsFunctions,
@@ -150,7 +173,7 @@ export async function zohoSubscriptionsApiRequest(
     body: IDataObject = {},
     qs: IDataObject = {},
     organizationId: string,
-) {
+): Promise<IDataObject> {
     const {access_token} = await getAccessTokenData.call(this);
     const options: IRequestOptions = {
         method,
@@ -264,4 +287,3 @@ export async function zohoCalendarApiRequest(
         throw new NodeApiError(this.getNode(), error as JsonObject, args);
     }
 }
-

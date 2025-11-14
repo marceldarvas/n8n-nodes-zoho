@@ -36,5 +36,60 @@ export const productFields: INodeProperties[] = [
 		},
 		description: 'ID of the product',
 	},
+	// Create Product Required Fields
+	{
+		displayName: 'Product Name',
+		name: 'productName',
+		type: 'string',
+		required: true,
+		default: '',
+		displayOptions: {
+			show: {
+				resource: ['product'],
+				operation: ['createProduct'],
+			},
+		},
+		description: 'Name of the product',
+	},
+	// Create/Update Product Optional Fields
+	{
+		displayName: 'Additional Fields',
+		name: 'additionalFields',
+		type: 'collection',
+		placeholder: 'Add Field',
+		default: {},
+		displayOptions: {
+			show: {
+				resource: ['product'],
+				operation: ['createProduct', 'updateProduct'],
+			},
+		},
+		options: [
+			{
+				displayName: 'Description',
+				name: 'description',
+				type: 'string',
+				typeOptions: {
+					rows: 4,
+				},
+				default: '',
+				description: 'Description of the product',
+			},
+			{
+				displayName: 'Email IDs',
+				name: 'email_ids',
+				type: 'string',
+				default: '',
+				description: 'Comma-separated list of email addresses to send notifications to',
+			},
+			{
+				displayName: 'Redirect URL',
+				name: 'redirect_url',
+				type: 'string',
+				default: '',
+				description: 'URL to redirect to after purchase',
+			},
+		],
+	},
 	...paginationFields('product', 'listProducts'),
 ];
