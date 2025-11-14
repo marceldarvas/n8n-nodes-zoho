@@ -34,37 +34,39 @@ export function jsonDataField(resources: string[], operations: string[]): INodeP
 }
 
 /**
- * Common pagination fields for list operations
+ * Common pagination fields for list operations with "Return All" support
  */
 export function paginationFields(resource: string, operation: string): INodeProperties[] {
 	return [
 		{
-			displayName: 'Page',
-			name: 'page',
-			type: 'number',
-			typeOptions: { minValue: 1 },
-			default: 1,
-			description: 'Page number to retrieve',
+			displayName: 'Return All',
+			name: 'returnAll',
+			type: 'boolean',
 			displayOptions: {
 				show: {
 					resource: [resource],
 					operation: [operation],
 				},
 			},
+			default: false,
+			description: 'Whether to return all results or only up to a given limit',
 		},
 		{
-			displayName: 'Per Page',
-			name: 'perPage',
+			displayName: 'Limit',
+			name: 'limit',
 			type: 'number',
-			typeOptions: { minValue: 1, maxValue: 200 },
-			default: 200,
-			description: 'Number of records per page',
 			displayOptions: {
 				show: {
 					resource: [resource],
 					operation: [operation],
+					returnAll: [false],
 				},
 			},
+			typeOptions: {
+				minValue: 1,
+			},
+			default: 50,
+			description: 'Max number of results to return',
 		},
 	];
 }
