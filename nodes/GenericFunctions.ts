@@ -16,12 +16,45 @@ import type {
 export function throwOnErrorStatus(
     this: IExecuteFunctions | IHookFunctions | ILoadOptionsFunctions,
     responseData: {
+        code?: number;
+        message?: string;
         data?: Array<{ status: string; message: string }>;
     },
 ) {
-    if (responseData?.data?.[0].status === 'error') {
-        throw new NodeOperationError(this.getNode(), responseData as Error);
+    // Check for error status in response
+    if (responseData?.code && responseData.code !== 0) {
+        throw new NodeOperationError(
+            this.getNode(),
+            `Zoho API error: ${responseData.message || 'Unknown error'}`,
+        );
     }
+
+    // Check for data-level errors
+    if (responseData?.data?.[0]?.status === 'error') {
+        throw new NodeOperationError(
+            this.getNode(),
+            responseData.data[0].message || 'API returned error status',
+        );
+    }
+}
+
+/**
+ * Map Zoho OAuth2 token URL to the appropriate Subscriptions API base URL.
+ * Supports all Zoho regions: US, EU, AU, IN, CN.
+ *
+ * @param accessTokenUrl - The OAuth2 token URL from credentials
+ * @returns The corresponding Subscriptions API base URL
+ */
+export function getSubscriptionsBaseUrl(accessTokenUrl: string): string {
+    const urlMap: { [key: string]: string } = {
+        'https://accounts.zoho.com/oauth/v2/token': 'https://www.zohoapis.com/billing/v1',
+        'https://accounts.zoho.eu/oauth/v2/token': 'https://www.zohoapis.eu/billing/v1',
+        'https://accounts.zoho.com.au/oauth/v2/token': 'https://www.zohoapis.com.au/billing/v1',
+        'https://accounts.zoho.in/oauth/v2/token': 'https://www.zohoapis.in/billing/v1',
+        'https://accounts.zoho.com.cn/oauth/v2/token': 'https://www.zohoapis.com.cn/billing/v1',
+    };
+
+    return urlMap[accessTokenUrl] || urlMap['https://accounts.zoho.com/oauth/v2/token'];
 }
 
 /**
@@ -134,10 +167,9 @@ export async function zohoSubscriptionsApiRequest(
     if (Object.keys(body).length) {
         options.body = body;
     }
-    console.log('Subscription Request Options',options);
     try {
         const responseData = await this.helpers.request!(options);
-        console.log(responseData);
+        throwOnErrorStatus.call(this, responseData);
         return responseData;
     } catch (error) {
         throw new NodeApiError(this.getNode(), error as JsonObject);
@@ -183,5 +215,53 @@ export async function zohoSubscriptionsApiRequestAllItems(
     );
 
     return returnData;
+}
+
+/**
+ * Make an authenticated API request to Zoho Calendar API.
+ */
+export async function zohoCalendarApiRequest(
+    this: IExecuteFunctions | IHookFunctions | ILoadOptionsFunctions,
+    method: IHttpRequestMethods,
+    endpoint: string,
+    body: IDataObject = {},
+    qs: IDataObject = {},
+) {
+    const {access_token} = await getAccessTokenData.call(this);
+
+    // Zoho Calendar API base URL
+    const baseUrl = 'https://calendar.zoho.com/api/v1';
+
+    const options: IRequestOptions = {
+        method,
+        url: `${baseUrl}${endpoint}`,
+        headers: {
+            Authorization: 'Zoho-oauthtoken ' + access_token,
+            'Content-Type': 'application/json',
+        },
+        json: true,
+    };
+
+    if (Object.keys(qs).length) {
+        options.qs = qs;
+    }
+
+    if (Object.keys(body).length) {
+        options.body = body;
+    }
+
+    try {
+        const responseData = await this.helpers.request!(options);
+        return responseData;
+    } catch (error) {
+        const errorData = (error as any).cause?.data;
+        const args = errorData
+            ? {
+                message: errorData.message || 'The Zoho Calendar API returned an error.',
+                description: JSON.stringify(errorData, null, 2),
+            }
+            : undefined;
+        throw new NodeApiError(this.getNode(), error as JsonObject, args);
+    }
 }
 
