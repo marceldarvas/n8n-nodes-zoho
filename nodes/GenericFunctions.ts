@@ -11,17 +11,56 @@ import {NodeApiError, NodeOperationError} from 'n8n-workflow';
 
 import type {
     ZohoOAuth2ApiCredentials,
+    ZohoApiErrorData,
 } from './types';
 
+/**
+ * Check Zoho API response for error status and throw appropriate error
+ * @param responseData - The API response data to check
+ * @throws {NodeOperationError} When the response contains an error status
+ */
 export function throwOnErrorStatus(
     this: IExecuteFunctions | IHookFunctions | ILoadOptionsFunctions,
     responseData: {
-        data?: Array<{ status: string; message: string }>;
+        code?: number;
+        message?: string;
+        data?: ZohoApiErrorData[];
     },
-) {
-    if (responseData?.data?.[0]?.status === 'error') {
-        throw new NodeOperationError(this.getNode(), responseData as Error);
+): void {
+    // Check for top-level error codes (non-zero code indicates error)
+    if (responseData?.code && responseData.code !== 0) {
+        throw new NodeOperationError(
+            this.getNode(),
+            `Zoho API error (code ${responseData.code}): ${responseData.message || 'Unknown error'}`,
+        );
     }
+
+    // Check for data-level errors (array format)
+    if (responseData?.data?.[0]?.status === 'error') {
+        throw new NodeOperationError(
+            this.getNode(),
+            responseData.data[0].message || 'API returned error status',
+        );
+    }
+}
+
+/**
+ * Map Zoho OAuth2 token URL to the appropriate Subscriptions API base URL.
+ * Supports all Zoho regions: US, EU, AU, IN, CN.
+ *
+ * @param accessTokenUrl - The OAuth2 token URL from credentials
+ * @returns The corresponding Subscriptions API base URL
+ */
+export function getSubscriptionsBaseUrl(accessTokenUrl: string): string {
+    const urlMap: { [key: string]: string } = {
+        'https://accounts.zoho.com/oauth/v2/token': 'https://www.zohoapis.com/billing/v1',
+        'https://accounts.zoho.eu/oauth/v2/token': 'https://www.zohoapis.eu/billing/v1',
+        'https://accounts.zoho.com.au/oauth/v2/token': 'https://www.zohoapis.com.au/billing/v1',
+        'https://accounts.zoho.in/oauth/v2/token': 'https://www.zohoapis.in/billing/v1',
+        'https://accounts.zoho.com.cn/oauth/v2/token': 'https://www.zohoapis.com.cn/billing/v1',
+    };
+
+    return urlMap[accessTokenUrl] || urlMap['https://accounts.zoho.com/oauth/v2/token'];
 }
 
 /**
@@ -58,12 +97,20 @@ async function getAccessTokenData(
         refresh_token = tokenResponse.refresh_token || refresh_token;
         api_domain = tokenResponse.api_domain;
         expires_in = tokenResponse.expires_in;
-    } else {
-        // console.log('Getting cached token');
     }
     return {api_domain, access_token, refresh_token, expires_in};
 }
 
+/**
+ * Make an authenticated API request to Zoho APIs (Mail, Tasks, Sheets, etc.)
+ * @param method - HTTP method (GET, POST, PUT, DELETE, etc.)
+ * @param baseURL - Base URL for the API endpoint
+ * @param uri - URI path for the specific endpoint
+ * @param body - Request body data
+ * @param qs - Query string parameters
+ * @returns Promise resolving to the API response data
+ * @throws {NodeApiError} When the API request fails
+ */
 export async function zohoApiRequest(
     this: IExecuteFunctions | IHookFunctions | ILoadOptionsFunctions,
     method: IHttpRequestMethods,
@@ -71,7 +118,7 @@ export async function zohoApiRequest(
     uri: string,
     body: IDataObject = {},
     qs: IDataObject = {},
-) {
+): Promise<IDataObject> {
     const {access_token} = await getAccessTokenData.call(this);
     const options: IRequestOptions = {
         method,
@@ -109,6 +156,15 @@ export async function zohoApiRequest(
 
 /**
  * Make an authenticated API request to Zoho Subscriptions (Billing) API.
+ * Automatically includes the organization ID header required by the Subscriptions API.
+ * @param method - HTTP method (GET, POST, PUT, DELETE, etc.)
+ * @param uri - Full URI for the API endpoint (including base URL)
+ * @param body - Request body data
+ * @param qs - Query string parameters
+ * @param organizationId - Zoho Subscriptions organization ID (required header)
+ * @returns Promise resolving to the API response data
+ * @throws {NodeApiError} When the API request fails
+ * @see https://www.zoho.com/subscriptions/api/v1/
  */
 export async function zohoSubscriptionsApiRequest(
     this: IExecuteFunctions | IHookFunctions | ILoadOptionsFunctions,
@@ -117,7 +173,7 @@ export async function zohoSubscriptionsApiRequest(
     body: IDataObject = {},
     qs: IDataObject = {},
     organizationId: string,
-) {
+): Promise<IDataObject> {
     const {access_token} = await getAccessTokenData.call(this);
     const options: IRequestOptions = {
         method,
@@ -134,13 +190,59 @@ export async function zohoSubscriptionsApiRequest(
     if (Object.keys(body).length) {
         options.body = body;
     }
-    console.log('Subscription Request Options',options);
     try {
         const responseData = await this.helpers.request!(options);
-        console.log(responseData);
+        throwOnErrorStatus.call(this, responseData);
         return responseData;
     } catch (error) {
         throw new NodeApiError(this.getNode(), error as JsonObject);
     }
 }
 
+/**
+ * Make an authenticated API request to Zoho Calendar API.
+ */
+export async function zohoCalendarApiRequest(
+    this: IExecuteFunctions | IHookFunctions | ILoadOptionsFunctions,
+    method: IHttpRequestMethods,
+    endpoint: string,
+    body: IDataObject = {},
+    qs: IDataObject = {},
+) {
+    const {access_token} = await getAccessTokenData.call(this);
+
+    // Zoho Calendar API base URL
+    const baseUrl = 'https://calendar.zoho.com/api/v1';
+
+    const options: IRequestOptions = {
+        method,
+        url: `${baseUrl}${endpoint}`,
+        headers: {
+            Authorization: 'Zoho-oauthtoken ' + access_token,
+            'Content-Type': 'application/json',
+        },
+        json: true,
+    };
+
+    if (Object.keys(qs).length) {
+        options.qs = qs;
+    }
+
+    if (Object.keys(body).length) {
+        options.body = body;
+    }
+
+    try {
+        const responseData = await this.helpers.request!(options);
+        return responseData;
+    } catch (error) {
+        const errorData = (error as any).cause?.data;
+        const args = errorData
+            ? {
+                message: errorData.message || 'The Zoho Calendar API returned an error.',
+                description: JSON.stringify(errorData, null, 2),
+            }
+            : undefined;
+        throw new NodeApiError(this.getNode(), error as JsonObject, args);
+    }
+}
