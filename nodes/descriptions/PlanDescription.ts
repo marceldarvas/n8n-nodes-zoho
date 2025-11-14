@@ -22,9 +22,12 @@ export const planOperations: INodeProperties[] = [
 
 export const planFields: INodeProperties[] = [
 	{
-		displayName: 'Plan ID',
+		displayName: 'Plan',
 		name: 'planId',
-		type: 'string',
+		type: 'options',
+		typeOptions: {
+			loadOptionsMethod: 'getPlans',
+		},
 		default: '',
 		required: true,
 		displayOptions: {
@@ -33,6 +36,6 @@ export const planFields: INodeProperties[] = [
 				operation: ['getPlan', 'updatePlan', 'deletePlan'],
 			},
 		},
-		description: 'ID of the plan',
+		description: 'The plan to operate on',
 	},
 ];

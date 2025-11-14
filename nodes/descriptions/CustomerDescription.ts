@@ -132,9 +132,12 @@ export const customerFields: INodeProperties[] = [
 		],
 	},
 	{
-		displayName: 'Customer ID',
+		displayName: 'Customer',
 		name: 'customerId',
-		type: 'string',
+		type: 'options',
+		typeOptions: {
+			loadOptionsMethod: 'getCustomers',
+		},
 		default: '',
 		required: true,
 		displayOptions: {
@@ -156,7 +159,7 @@ export const customerFields: INodeProperties[] = [
 				],
 			},
 		},
-		description: 'CRM customer ID',
+		description: 'The customer to operate on',
 	},
 	{
 		displayName: 'Reference ID',

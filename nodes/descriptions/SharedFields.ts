@@ -4,12 +4,15 @@ import type { INodeProperties } from 'n8n-workflow';
  * Common field for Organization ID used across all Zoho Billing operations
  */
 export const organizationId: INodeProperties = {
-	displayName: 'Organization ID',
+	displayName: 'Organization',
 	name: 'organizationId',
-	type: 'string',
+	type: 'options',
+	typeOptions: {
+		loadOptionsMethod: 'getOrganizations',
+	},
 	required: true,
 	default: '',
-	description: 'Zoho Subscriptions organization ID',
+	description: 'The Zoho Subscriptions organization to use',
 };
 
 /**
