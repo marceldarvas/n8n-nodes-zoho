@@ -42,7 +42,8 @@
       "dist/nodes/ZohoBilling.node.js",
       "dist/nodes/ZohoTasks.node.js",
       "dist/nodes/ZohoEmail.node.js",
-      "dist/nodes/ZohoCalendar.node.js"
+      "dist/nodes/ZohoCalendar.node.js",
+      "dist/nodes/ZohoBigin.node.js"
     ]
   },
   "devDependencies": {
