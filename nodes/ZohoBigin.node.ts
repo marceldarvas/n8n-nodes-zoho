@@ -133,21 +133,20 @@ export class ZohoBigin implements INodeType {
 				let responseData: IDataObject | IDataObject[] = {};
 
 				// Route to appropriate resource handler
-				const nodeInstance = this as unknown as ZohoBigin;
 				if (resource === 'pipeline') {
-					responseData = await nodeInstance.handlePipelineOperations(this, operation, i, baseUrl);
+					responseData = await ZohoBigin.handlePipelineOperations(this, operation, i, baseUrl);
 				} else if (resource === 'contact') {
-					responseData = await nodeInstance.handleContactOperations(this, operation, i, baseUrl);
+					responseData = await ZohoBigin.handleContactOperations(this, operation, i, baseUrl);
 				} else if (resource === 'account') {
-					responseData = await nodeInstance.handleAccountOperations(this, operation, i, baseUrl);
+					responseData = await ZohoBigin.handleAccountOperations(this, operation, i, baseUrl);
 				} else if (resource === 'product') {
-					responseData = await nodeInstance.handleProductOperations(this, operation, i, baseUrl);
+					responseData = await ZohoBigin.handleProductOperations(this, operation, i, baseUrl);
 				} else if (resource === 'task') {
-					responseData = await nodeInstance.handleTaskOperations(this, operation, i, baseUrl);
+					responseData = await ZohoBigin.handleTaskOperations(this, operation, i, baseUrl);
 				} else if (resource === 'event') {
-					responseData = await nodeInstance.handleEventOperations(this, operation, i, baseUrl);
+					responseData = await ZohoBigin.handleEventOperations(this, operation, i, baseUrl);
 				} else if (resource === 'note') {
-					responseData = await nodeInstance.handleNoteOperations(this, operation, i, baseUrl);
+					responseData = await ZohoBigin.handleNoteOperations(this, operation, i, baseUrl);
 				} else {
 					throw new NodeOperationError(
 						this.getNode(),
@@ -194,7 +193,7 @@ export class ZohoBigin implements INodeType {
 	 * @param itemIndex - The index of the current item being processed
 	 * @param baseUrl - The base URL for the Bigin API
 	 */
-	private async handlePipelineOperations(
+	static async handlePipelineOperations(
 		context: IExecuteFunctions,
 		operation: string,
 		itemIndex: number,
@@ -320,7 +319,7 @@ export class ZohoBigin implements INodeType {
 	 * Handle Contact operations
 	 * Operations: list, get, create, update, delete, search
 	 */
-	private async handleContactOperations(
+	static async handleContactOperations(
 		context: IExecuteFunctions,
 		operation: string,
 		itemIndex: number,
@@ -446,7 +445,7 @@ export class ZohoBigin implements INodeType {
 	 * Handle Account (Company) operations
 	 * Operations: list, get, create, update, delete, search
 	 */
-	private async handleAccountOperations(
+	static async handleAccountOperations(
 		context: IExecuteFunctions,
 		operation: string,
 		itemIndex: number,
@@ -572,7 +571,7 @@ export class ZohoBigin implements INodeType {
 	 * Handle Product operations
 	 * Operations: list, get, create, update, delete, search
 	 */
-	private async handleProductOperations(
+	static async handleProductOperations(
 		context: IExecuteFunctions,
 		operation: string,
 		itemIndex: number,
@@ -698,7 +697,7 @@ export class ZohoBigin implements INodeType {
 	 * Handle Task operations
 	 * Operations: list, get, create, update, delete, search
 	 */
-	private async handleTaskOperations(
+	static async handleTaskOperations(
 		context: IExecuteFunctions,
 		operation: string,
 		itemIndex: number,
@@ -824,7 +823,7 @@ export class ZohoBigin implements INodeType {
 	 * Handle Event (Calendar) operations
 	 * Operations: list, get, create, update, delete, search
 	 */
-	private async handleEventOperations(
+	static async handleEventOperations(
 		context: IExecuteFunctions,
 		operation: string,
 		itemIndex: number,
@@ -864,12 +863,16 @@ export class ZohoBigin implements INodeType {
 
 		} else if (operation === 'createEvent') {
 			const eventTitle = context.getNodeParameter('eventTitle', itemIndex) as string;
+			const startDateTime = context.getNodeParameter('startDateTime', itemIndex) as string;
+			const endDateTime = context.getNodeParameter('endDateTime', itemIndex) as string;
 			const additionalFields = context.getNodeParameter('additionalFields', itemIndex, {}) as IDataObject;
 
 			const body = {
 				data: [
 					{
 						Event_Title: eventTitle,
+						Start_DateTime: startDateTime,
+						End_DateTime: endDateTime,
 						...additionalFields,
 					},
 				],
@@ -950,7 +953,7 @@ export class ZohoBigin implements INodeType {
 	 * Handle Note operations
 	 * Operations: list, get, create, update, delete, search
 	 */
-	private async handleNoteOperations(
+	static async handleNoteOperations(
 		context: IExecuteFunctions,
 		operation: string,
 		itemIndex: number,
