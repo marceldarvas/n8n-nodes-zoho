@@ -185,6 +185,77 @@ export class ZohoBigin implements INodeType {
 	}
 
 	/**
+	 * Build criteria string from filters for Zoho Bigin API
+	 * Converts filter objects into Zoho API criteria format
+	 *
+	 * @param filters - Array of filter objects with field, operator, and value
+	 * @returns Criteria string in Zoho format (e.g., "(Field:operator:value)")
+	 */
+	private static buildCriteriaString(filters: Array<{ field: string; operator: string; value?: string }>): string {
+		const conditions: string[] = [];
+
+		filters.forEach((filter) => {
+			const { field, operator, value } = filter;
+			let condition = '';
+
+			switch (operator) {
+				case 'equals':
+					condition = `(${field}:equals:${value})`;
+					break;
+				case 'not_equals':
+					condition = `(${field}:not_equals:${value})`;
+					break;
+				case 'contains':
+					condition = `(${field}:contains:${value})`;
+					break;
+				case 'not_contains':
+					// Zoho doesn't have direct not_contains, use NOT operator
+					condition = `NOT (${field}:contains:${value})`;
+					break;
+				case 'starts_with':
+					condition = `(${field}:starts_with:${value})`;
+					break;
+				case 'ends_with':
+					// Zoho doesn't have direct ends_with, use regex-like pattern
+					condition = `(${field}:ends_with:${value})`;
+					break;
+				case 'greater_than':
+					condition = `(${field}:greater_than:${value})`;
+					break;
+				case 'less_than':
+					condition = `(${field}:less_than:${value})`;
+					break;
+				case 'between':
+					if (value && value.includes(',')) {
+						const [min, max] = value.split(',').map(v => v.trim());
+						condition = `(${field}:between:${min},${max})`;
+					}
+					break;
+				case 'in':
+					if (value) {
+						const values = value.split(',').map(v => v.trim()).join(',');
+						condition = `(${field}:in:${values})`;
+					}
+					break;
+				case 'is_empty':
+					condition = `(${field}:is_empty)`;
+					break;
+				case 'is_not_empty':
+					condition = `NOT (${field}:is_empty)`;
+					break;
+				default:
+					break;
+			}
+
+			if (condition) {
+				conditions.push(condition);
+			}
+		});
+
+		return conditions.join(' AND ');
+	}
+
+	/**
 	 * Handle Pipeline (Deals) operations
 	 * Operations: list, get, create, update, delete, search
 	 *
@@ -202,11 +273,22 @@ export class ZohoBigin implements INodeType {
 		if (operation === 'listPipelines') {
 			const page = context.getNodeParameter('page', itemIndex, 1) as number;
 			const perPage = context.getNodeParameter('perPage', itemIndex, 200) as number;
+			const filters = context.getNodeParameter('filters', itemIndex, { filter: [] }) as {
+				filter: Array<{ field: string; operator: string; value?: string }>;
+			};
 
 			const qs: IDataObject = {
 				page,
 				per_page: perPage,
 			};
+
+			// Add advanced filters if provided
+			if (filters.filter && filters.filter.length > 0) {
+				const criteria = ZohoBigin.buildCriteriaString(filters.filter);
+				if (criteria) {
+					qs.criteria = criteria;
+				}
+			}
 
 			const response = await zohoBiginApiRequest.call(
 				context,
@@ -291,12 +373,30 @@ export class ZohoBigin implements INodeType {
 			return response.data?.[0]?.details || {};
 
 		} else if (operation === 'searchPipelines') {
-			const searchTerm = context.getNodeParameter('searchTerm', itemIndex) as string;
-			const searchField = context.getNodeParameter('searchField', itemIndex, 'Deal_Name') as string;
-
-			const qs: IDataObject = {
-				criteria: `(${searchField}:contains:${searchTerm})`,
+			const searchTerm = context.getNodeParameter('searchTerm', itemIndex, '') as string;
+			const filters = context.getNodeParameter('filters', itemIndex, { filter: [] }) as {
+				filter: Array<{ field: string; operator: string; value?: string }>;
 			};
+
+			const criteria: string[] = [];
+
+			// Add search term criteria if provided
+			if (searchTerm) {
+				criteria.push(`(Deal_Name:contains:${searchTerm})`);
+			}
+
+			// Add advanced filters if provided
+			if (filters.filter && filters.filter.length > 0) {
+				const filterCriteria = ZohoBigin.buildCriteriaString(filters.filter);
+				if (filterCriteria) {
+					criteria.push(filterCriteria);
+				}
+			}
+
+			const qs: IDataObject = {};
+			if (criteria.length > 0) {
+				qs.criteria = criteria.join(' AND ');
+			}
 
 			const response = await zohoBiginApiRequest.call(
 				context,
@@ -456,11 +556,22 @@ export class ZohoBigin implements INodeType {
 		if (operation === 'listContacts') {
 			const page = context.getNodeParameter('page', itemIndex, 1) as number;
 			const perPage = context.getNodeParameter('perPage', itemIndex, 200) as number;
+			const filters = context.getNodeParameter('filters', itemIndex, { filter: [] }) as {
+				filter: Array<{ field: string; operator: string; value?: string }>;
+			};
 
 			const qs: IDataObject = {
 				page,
 				per_page: perPage,
 			};
+
+			// Add advanced filters if provided
+			if (filters.filter && filters.filter.length > 0) {
+				const criteria = ZohoBigin.buildCriteriaString(filters.filter);
+				if (criteria) {
+					qs.criteria = criteria;
+				}
+			}
 
 			const response = await zohoBiginApiRequest.call(
 				context,
@@ -545,12 +656,30 @@ export class ZohoBigin implements INodeType {
 			return response.data?.[0]?.details || {};
 
 		} else if (operation === 'searchContacts') {
-			const searchTerm = context.getNodeParameter('searchTerm', itemIndex) as string;
-			const searchField = context.getNodeParameter('searchField', itemIndex, 'Last_Name') as string;
-
-			const qs: IDataObject = {
-				criteria: `(${searchField}:contains:${searchTerm})`,
+			const searchTerm = context.getNodeParameter('searchTerm', itemIndex, '') as string;
+			const filters = context.getNodeParameter('filters', itemIndex, { filter: [] }) as {
+				filter: Array<{ field: string; operator: string; value?: string }>;
 			};
+
+			const criteria: string[] = [];
+
+			// Add search term criteria if provided
+			if (searchTerm) {
+				criteria.push(`(Last_Name:contains:${searchTerm})`);
+			}
+
+			// Add advanced filters if provided
+			if (filters.filter && filters.filter.length > 0) {
+				const filterCriteria = ZohoBigin.buildCriteriaString(filters.filter);
+				if (filterCriteria) {
+					criteria.push(filterCriteria);
+				}
+			}
+
+			const qs: IDataObject = {};
+			if (criteria.length > 0) {
+				qs.criteria = criteria.join(' AND ');
+			}
 
 			const response = await zohoBiginApiRequest.call(
 				context,
@@ -710,11 +839,22 @@ export class ZohoBigin implements INodeType {
 		if (operation === 'listAccounts') {
 			const page = context.getNodeParameter('page', itemIndex, 1) as number;
 			const perPage = context.getNodeParameter('perPage', itemIndex, 200) as number;
+			const filters = context.getNodeParameter('filters', itemIndex, { filter: [] }) as {
+				filter: Array<{ field: string; operator: string; value?: string }>;
+			};
 
 			const qs: IDataObject = {
 				page,
 				per_page: perPage,
 			};
+
+			// Add advanced filters if provided
+			if (filters.filter && filters.filter.length > 0) {
+				const criteria = ZohoBigin.buildCriteriaString(filters.filter);
+				if (criteria) {
+					qs.criteria = criteria;
+				}
+			}
 
 			const response = await zohoBiginApiRequest.call(
 				context,
@@ -799,12 +939,30 @@ export class ZohoBigin implements INodeType {
 			return response.data?.[0]?.details || {};
 
 		} else if (operation === 'searchAccounts') {
-			const searchTerm = context.getNodeParameter('searchTerm', itemIndex) as string;
-			const searchField = context.getNodeParameter('searchField', itemIndex, 'Account_Name') as string;
-
-			const qs: IDataObject = {
-				criteria: `(${searchField}:contains:${searchTerm})`,
+			const searchTerm = context.getNodeParameter('searchTerm', itemIndex, '') as string;
+			const filters = context.getNodeParameter('filters', itemIndex, { filter: [] }) as {
+				filter: Array<{ field: string; operator: string; value?: string }>;
 			};
+
+			const criteria: string[] = [];
+
+			// Add search term criteria if provided
+			if (searchTerm) {
+				criteria.push(`(Account_Name:contains:${searchTerm})`);
+			}
+
+			// Add advanced filters if provided
+			if (filters.filter && filters.filter.length > 0) {
+				const filterCriteria = ZohoBigin.buildCriteriaString(filters.filter);
+				if (filterCriteria) {
+					criteria.push(filterCriteria);
+				}
+			}
+
+			const qs: IDataObject = {};
+			if (criteria.length > 0) {
+				qs.criteria = criteria.join(' AND ');
+			}
 
 			const response = await zohoBiginApiRequest.call(
 				context,
@@ -964,11 +1122,22 @@ export class ZohoBigin implements INodeType {
 		if (operation === 'listProducts') {
 			const page = context.getNodeParameter('page', itemIndex, 1) as number;
 			const perPage = context.getNodeParameter('perPage', itemIndex, 200) as number;
+			const filters = context.getNodeParameter('filters', itemIndex, { filter: [] }) as {
+				filter: Array<{ field: string; operator: string; value?: string }>;
+			};
 
 			const qs: IDataObject = {
 				page,
 				per_page: perPage,
 			};
+
+			// Add advanced filters if provided
+			if (filters.filter && filters.filter.length > 0) {
+				const criteria = ZohoBigin.buildCriteriaString(filters.filter);
+				if (criteria) {
+					qs.criteria = criteria;
+				}
+			}
 
 			const response = await zohoBiginApiRequest.call(
 				context,

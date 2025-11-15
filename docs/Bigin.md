@@ -703,6 +703,127 @@ Bulk operations return an array of results for each record:
 
 ---
 
+## Advanced Filtering
+
+The Zoho Bigin node supports advanced filtering with a comprehensive set of operators for precise data retrieval. Advanced filters are available for list and search operations across all modules (Contacts, Pipelines, Accounts, Products).
+
+### Available Filter Operators
+
+| Operator | Description | Example Usage |
+|----------|-------------|---------------|
+| **Equals** | Exact match | `Stage equals "Closed Won"` |
+| **Not Equals** | Excludes exact match | `Stage not_equals "Closed Lost"` |
+| **Contains** | Partial string match | `Email contains "@example.com"` |
+| **Does Not Contain** | Excludes partial match | `Email not_contains "@spam.com"` |
+| **Starts With** | Matches beginning of string | `Account_Name starts_with "Acme"` |
+| **Ends With** | Matches end of string | `Email ends_with ".com"` |
+| **Greater Than** | Numeric/date comparison | `Amount greater_than 5000` |
+| **Less Than** | Numeric/date comparison | `Amount less_than 1000` |
+| **Between** | Range comparison | `Amount between 1000,5000` |
+| **In** | Matches any value in list | `Stage in "Qualification,Proposal"` |
+| **Is Empty** | Field has no value | `Email is_empty` |
+| **Is Not Empty** | Field has a value | `Phone is_not_empty` |
+
+### Using Filters
+
+Filters can be added in the node's UI under the "Filters" section. Multiple filters can be combined, and they are automatically joined with AND logic.
+
+**Example 1: Filter Contacts by Email Domain**
+```
+Field: Email
+Operator: Contains
+Value: @example.com
+```
+Result: Returns all contacts with email addresses containing "@example.com"
+
+**Example 2: Filter Pipelines by Amount Range**
+```
+Field: Amount
+Operator: Between
+Value: 5000,50000
+```
+Result: Returns all deals with amount between $5,000 and $50,000
+
+**Example 3: Filter Accounts with Multiple Conditions**
+```
+Filter 1:
+  Field: Industry
+  Operator: Equals
+  Value: Technology
+
+Filter 2:
+  Field: Website
+  Operator: Is Not Empty
+```
+Result: Returns all technology companies that have a website
+
+**Example 4: Filter Products by Multiple Values**
+```
+Field: Product_Category
+Operator: In
+Value: Electronics,Software,Hardware
+```
+Result: Returns products in any of the three categories
+
+### Special Operator Notes
+
+**Between Operator:**
+- Use comma-separated values: `min,max`
+- Example: `1000,5000` for values between 1000 and 5000
+
+**In Operator:**
+- Use comma-separated values for multiple options
+- Example: `Value1,Value2,Value3`
+- Useful for filtering by multiple stages, statuses, or categories
+
+**Empty Operators:**
+- `Is Empty` and `Is Not Empty` don't require a value
+- Useful for data quality checks and finding incomplete records
+
+### Combining with Search
+
+For search operations, you can combine the search term with advanced filters. The search term and all filters are joined with AND logic.
+
+**Example: Search Contacts**
+```
+Search Term: John
+Filters:
+  - Email is_not_empty
+  - Created_Time greater_than 2025-01-01
+```
+Result: Finds contacts with "John" in their name, who have an email, and were created after January 1, 2025
+
+### Filter Criteria Format
+
+Behind the scenes, filters are converted to Zoho's criteria format:
+- Simple: `(Field:operator:value)`
+- Multiple: `(Field1:operator:value) AND (Field2:operator:value)`
+- Negation: `NOT (Field:operator:value)`
+
+### Best Practices
+
+1. **Use Specific Operators**: Choose the most specific operator for better performance
+   - Use `Equals` instead of `Contains` when possible
+   - Use `Starts With` instead of `Contains` for prefix matching
+
+2. **Combine Filters Efficiently**: Order filters from most restrictive to least
+   - Put filters that eliminate the most records first
+   - Combine complementary filters for precise results
+
+3. **Empty Check Performance**: Use `Is Empty` / `Is Not Empty` for data validation
+   - Find incomplete records quickly
+   - Ensure data quality before processing
+
+4. **Date/Number Filtering**: Use comparison operators for ranges
+   - `Between` for ranges
+   - `Greater Than` / `Less Than` for open-ended ranges
+
+5. **Multi-Value Selection**: Use `In` operator for categorical data
+   - Stages, statuses, categories
+   - More efficient than multiple OR conditions
+
+---
+
 ## Troubleshooting
 
 ### Issue: "Invalid Token" Error
@@ -750,6 +871,6 @@ Bulk operations return an array of results for each record:
 ---
 
 **Last Updated**: 2025-11-15
-**Node Version**: 1.1 (Phase 6 - Bulk Operations)
+**Node Version**: 1.2 (Phase 6 - Advanced Features: Bulk Operations + Advanced Filtering)
 **API Version**: v2
 **Status**: Production Ready
