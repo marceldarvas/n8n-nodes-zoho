@@ -3,7 +3,7 @@
   "version": "1.0.2",
   "author": "Vladimir Vlach",
   "license": "GPL-3.0",
-  "description": "Zoho support for n8n",
+  "description": "Zoho support for n8n (Sheets, Billing, Tasks, Email, Calendar, Bigin CRM)",
   "keywords": [
     "n8n",
     "nodemation",
@@ -15,7 +15,10 @@
     "nodes",
     "custom",
     "suiteCrm",
-    "workflow"
+    "workflow",
+    "zoho",
+    "bigin",
+    "crm"
   ],
   "repository": {
     "type": "git",

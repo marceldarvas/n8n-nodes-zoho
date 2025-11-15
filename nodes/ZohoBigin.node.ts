@@ -1,6 +1,6 @@
 import type {
-	IExecuteFunctions,
 	IDataObject,
+	IExecuteFunctions,
 	INodeExecutionData,
 	INodeType,
 	INodeTypeDescription,
@@ -8,15 +8,28 @@ import type {
 
 import { NodeConnectionTypes, NodeOperationError } from 'n8n-workflow';
 
-import { zohoApiRequest } from './GenericFunctions';
+import { getBiginBaseUrl, zohoBiginApiRequest } from './GenericFunctions';
+
+import {
+	pipelinesOperations,
+	pipelinesFields,
+	contactsOperations,
+	contactsFields,
+	accountsOperations,
+	accountsFields,
+	productsOperations,
+	productsFields,
+	tasksOperations,
+	tasksFields,
+	eventsOperations,
+	eventsFields,
+	notesOperations,
+	notesFields,
+} from './descriptions';
 
 /**
  * Zoho Bigin Node
- *
- * Provides integration with Zoho Bigin - a lightweight CRM for small businesses.
- * Supports CRUD operations for Contacts, Deals, Products, and Activities.
- *
- * @see https://www.bigin.com/developer/docs/apis/v2/
+ * Integrates with Zoho Bigin CRM API for managing pipelines, contacts, accounts, products, tasks, events, and notes
  */
 export class ZohoBigin implements INodeType {
 	description: INodeTypeDescription = {
@@ -26,7 +39,7 @@ export class ZohoBigin implements INodeType {
 		group: ['transform'],
 		version: 1,
 		subtitle: '={{$parameter["resource"] + ": " + $parameter["operation"]}}',
-		description: 'Consume Zoho Bigin API - Lightweight CRM for small businesses',
+		description: 'Consume Zoho Bigin CRM API',
 		defaults: {
 			name: 'Zoho Bigin',
 		},
@@ -39,7 +52,7 @@ export class ZohoBigin implements INodeType {
 			},
 		],
 		properties: [
-			// Resource Selection
+			// Resource selector
 			{
 				displayName: 'Resource',
 				name: 'resource',
@@ -47,460 +60,121 @@ export class ZohoBigin implements INodeType {
 				noDataExpression: true,
 				options: [
 					{
+						name: 'Pipeline',
+						value: 'pipeline',
+						description: 'Operations on pipeline records (deals)',
+					},
+					{
 						name: 'Contact',
 						value: 'contact',
 						description: 'Operations on contacts',
 					},
-				],
-				default: 'contact',
-				description: 'The resource to operate on',
-			},
-
-			// ==========================================
-			//         Contact Operations
-			// ==========================================
-			{
-				displayName: 'Operation',
-				name: 'operation',
-				type: 'options',
-				noDataExpression: true,
-				displayOptions: {
-					show: {
-						resource: ['contact'],
-					},
-				},
-				options: [
 					{
-						name: 'Create',
-						value: 'create',
-						description: 'Create a new contact',
-						action: 'Create a contact',
+						name: 'Account',
+						value: 'account',
+						description: 'Operations on companies/accounts',
 					},
 					{
-						name: 'Delete',
-						value: 'delete',
-						description: 'Delete a contact',
-						action: 'Delete a contact',
+						name: 'Product',
+						value: 'product',
+						description: 'Operations on products',
 					},
 					{
-						name: 'Get',
-						value: 'get',
-						description: 'Retrieve a contact by ID',
-						action: 'Get a contact',
+						name: 'Task',
+						value: 'task',
+						description: 'Operations on tasks',
 					},
 					{
-						name: 'List',
-						value: 'list',
-						description: 'List all contacts',
-						action: 'List contacts',
+						name: 'Event',
+						value: 'event',
+						description: 'Operations on calendar events',
 					},
 					{
-						name: 'Search',
-						value: 'search',
-						description: 'Search contacts by criteria',
-						action: 'Search contacts',
-					},
-					{
-						name: 'Update',
-						value: 'update',
-						description: 'Update an existing contact',
-						action: 'Update a contact',
+						name: 'Note',
+						value: 'note',
+						description: 'Operations on notes',
 					},
 				],
-				default: 'create',
-				description: 'The operation to perform',
+				default: 'pipeline',
 			},
-
-			// ==========================================
-			//         Contact Parameters
-			// ==========================================
-
-			// Contact ID (for get, update, delete)
-			{
-				displayName: 'Contact ID',
-				name: 'contactId',
-				type: 'string',
-				required: true,
-				displayOptions: {
-					show: {
-						resource: ['contact'],
-						operation: ['get', 'update', 'delete'],
-					},
-				},
-				default: '',
-				description: 'The ID of the contact',
-				placeholder: '4876876000000624001',
-			},
-
-			// JSON Data (for create, update)
-			{
-				displayName: 'JSON Data',
-				name: 'jsonData',
-				type: 'json',
-				required: true,
-				displayOptions: {
-					show: {
-						resource: ['contact'],
-						operation: ['create', 'update'],
-					},
-				},
-				default: '{\n  "First_Name": "John",\n  "Last_Name": "Doe",\n  "Email": "john.doe@example.com",\n  "Phone": "+1-555-0123"\n}',
-				description: 'Contact data in JSON format. For create operations, will be automatically wrapped in data array if not already wrapped.',
-				placeholder: '{"First_Name": "John", "Last_Name": "Doe", "Email": "john@example.com"}',
-			},
-
-			// Search Criteria (for search)
-			{
-				displayName: 'Search Criteria',
-				name: 'criteria',
-				type: 'string',
-				required: true,
-				displayOptions: {
-					show: {
-						resource: ['contact'],
-						operation: ['search'],
-					},
-				},
-				default: '',
-				description: 'Search criteria in COQL format. Example: (Email:equals:john@example.com) or (First_Name:starts_with:John)',
-				placeholder: '(Email:equals:john@example.com)',
-			},
-
-			// ==========================================
-			//         List/Search Parameters
-			// ==========================================
-
-			// Page Number
-			{
-				displayName: 'Page',
-				name: 'page',
-				type: 'number',
-				typeOptions: {
-					minValue: 1,
-				},
-				displayOptions: {
-					show: {
-						resource: ['contact'],
-						operation: ['list', 'search'],
-					},
-				},
-				default: 1,
-				description: 'Page number for pagination',
-			},
-
-			// Records Per Page
-			{
-				displayName: 'Per Page',
-				name: 'per_page',
-				type: 'number',
-				typeOptions: {
-					minValue: 1,
-					maxValue: 200,
-				},
-				displayOptions: {
-					show: {
-						resource: ['contact'],
-						operation: ['list', 'search'],
-					},
-				},
-				default: 200,
-				description: 'Number of records per page (max 200)',
-			},
-
-			// Sort Order
-			{
-				displayName: 'Sort Order',
-				name: 'sort_order',
-				type: 'options',
-				options: [
-					{
-						name: 'Ascending',
-						value: 'asc',
-					},
-					{
-						name: 'Descending',
-						value: 'desc',
-					},
-				],
-				displayOptions: {
-					show: {
-						resource: ['contact'],
-						operation: ['list'],
-					},
-				},
-				default: 'asc',
-				description: 'Sort order for the results',
-			},
-
-			// Sort By
-			{
-				displayName: 'Sort By',
-				name: 'sort_by',
-				type: 'string',
-				displayOptions: {
-					show: {
-						resource: ['contact'],
-						operation: ['list'],
-					},
-				},
-				default: 'Created_Time',
-				description: 'Field to sort by (e.g., Created_Time, Modified_Time, First_Name)',
-				placeholder: 'Created_Time',
-			},
-
-			// Additional Fields (optional)
-			{
-				displayName: 'Additional Fields',
-				name: 'additionalFields',
-				type: 'collection',
-				placeholder: 'Add Field',
-				default: {},
-				displayOptions: {
-					show: {
-						resource: ['contact'],
-						operation: ['list', 'search'],
-					},
-				},
-				options: [
-					{
-						displayName: 'Fields',
-						name: 'fields',
-						type: 'string',
-						default: '',
-						description: 'Comma-separated list of fields to retrieve. Leave empty for all fields.',
-						placeholder: 'First_Name,Last_Name,Email,Phone',
-					},
-					{
-						displayName: 'Approved',
-						name: 'approved',
-						type: 'options',
-						options: [
-							{
-								name: 'Both',
-								value: 'both',
-							},
-							{
-								name: 'True',
-								value: 'true',
-							},
-							{
-								name: 'False',
-								value: 'false',
-							},
-						],
-						default: 'both',
-						description: 'Filter by approval status',
-					},
-					{
-						displayName: 'Converted',
-						name: 'converted',
-						type: 'options',
-						options: [
-							{
-								name: 'Both',
-								value: 'both',
-							},
-							{
-								name: 'True',
-								value: 'true',
-							},
-							{
-								name: 'False',
-								value: 'false',
-							},
-						],
-						default: 'both',
-						description: 'Filter by conversion status',
-					},
-				],
-			},
+			// Operations and fields for each resource
+			...pipelinesOperations,
+			...contactsOperations,
+			...accountsOperations,
+			...productsOperations,
+			...tasksOperations,
+			...eventsOperations,
+			...notesOperations,
+			...pipelinesFields,
+			...contactsFields,
+			...accountsFields,
+			...productsFields,
+			...tasksFields,
+			...eventsFields,
+			...notesFields,
 		],
 	};
 
 	/**
-	 * Execute the node
+	 * Main execution method
+	 * Routes operations to appropriate resource handlers
 	 */
 	async execute(this: IExecuteFunctions): Promise<INodeExecutionData[][]> {
 		const items = this.getInputData();
 		const returnData: INodeExecutionData[] = [];
-
-		// Bigin API base URL (v2 is recommended)
-		const baseURL = 'https://www.zohoapis.com/bigin/v2';
+		const credentials = await this.getCredentials('zohoApi');
+		const baseUrl = getBiginBaseUrl(credentials.accessTokenUrl as string);
 
 		for (let i = 0; i < items.length; i++) {
 			try {
 				const resource = this.getNodeParameter('resource', i) as string;
 				const operation = this.getNodeParameter('operation', i) as string;
 
-				let responseData: IDataObject = {};
+				let responseData: IDataObject | IDataObject[] = {};
 
-				// ==========================================
-				//         Contact Operations
-				// ==========================================
-				if (resource === 'contact') {
-					// Create Contact
-					if (operation === 'create') {
-						const jsonData = this.getNodeParameter('jsonData', i) as string;
-						let body: IDataObject;
-
-						try {
-							body = JSON.parse(jsonData);
-						} catch (error) {
-							throw new NodeOperationError(
-								this.getNode(),
-								`Invalid JSON in 'JSON Data' parameter: ${error.message}`,
-								{ itemIndex: i },
-							);
-						}
-
-						// Ensure data is wrapped in array format as required by Bigin API
-						const requestBody = body.data ? body : { data: [body] };
-
-						responseData = await zohoApiRequest.call(
-							this,
-							'POST',
-							baseURL,
-							'/Contacts',
-							requestBody,
-						);
-					}
-
-					// Get Contact
-					else if (operation === 'get') {
-						const contactId = this.getNodeParameter('contactId', i) as string;
-
-						responseData = await zohoApiRequest.call(
-							this,
-							'GET',
-							baseURL,
-							`/Contacts/${contactId}`,
-						);
-					}
-
-					// Update Contact
-					else if (operation === 'update') {
-						const contactId = this.getNodeParameter('contactId', i) as string;
-						const jsonData = this.getNodeParameter('jsonData', i) as string;
-						let body: IDataObject;
-
-						try {
-							body = JSON.parse(jsonData);
-						} catch (error) {
-							throw new NodeOperationError(
-								this.getNode(),
-								`Invalid JSON in 'JSON Data' parameter: ${error.message}`,
-								{ itemIndex: i },
-							);
-						}
-
-						// Ensure data is wrapped in array format
-						const requestBody = body.data ? body : { data: [body] };
-
-						responseData = await zohoApiRequest.call(
-							this,
-							'PUT',
-							baseURL,
-							`/Contacts/${contactId}`,
-							requestBody,
-						);
-					}
-
-					// Delete Contact
-					else if (operation === 'delete') {
-						const contactId = this.getNodeParameter('contactId', i) as string;
-
-						responseData = await zohoApiRequest.call(
-							this,
-							'DELETE',
-							baseURL,
-							`/Contacts/${contactId}`,
-						);
-					}
-
-					// List Contacts
-					else if (operation === 'list') {
-						const page = this.getNodeParameter('page', i, 1) as number;
-						const perPage = this.getNodeParameter('per_page', i, 200) as number;
-						const sortOrder = this.getNodeParameter('sort_order', i, 'asc') as string;
-						const sortBy = this.getNodeParameter('sort_by', i, 'Created_Time') as string;
-						const additionalFields = this.getNodeParameter('additionalFields', i, {}) as IDataObject;
-
-						const qs: IDataObject = {
-							page,
-							per_page: perPage,
-							sort_order: sortOrder,
-							sort_by: sortBy,
-						};
-
-						// Add additional fields if provided
-						if (additionalFields.fields) {
-							qs.fields = additionalFields.fields;
-						}
-						if (additionalFields.approved && additionalFields.approved !== 'both') {
-							qs.approved = additionalFields.approved;
-						}
-						if (additionalFields.converted && additionalFields.converted !== 'both') {
-							qs.converted = additionalFields.converted;
-						}
-
-						responseData = await zohoApiRequest.call(
-							this,
-							'GET',
-							baseURL,
-							'/Contacts',
-							{},
-							qs,
-						);
-					}
-
-					// Search Contacts
-					else if (operation === 'search') {
-						const criteria = this.getNodeParameter('criteria', i) as string;
-						const page = this.getNodeParameter('page', i, 1) as number;
-						const perPage = this.getNodeParameter('per_page', i, 200) as number;
-						const additionalFields = this.getNodeParameter('additionalFields', i, {}) as IDataObject;
-
-						const qs: IDataObject = {
-							criteria,
-							page,
-							per_page: perPage,
-						};
-
-						// Add additional fields if provided
-						if (additionalFields.fields) {
-							qs.fields = additionalFields.fields;
-						}
-						if (additionalFields.approved && additionalFields.approved !== 'both') {
-							qs.approved = additionalFields.approved;
-						}
-						if (additionalFields.converted && additionalFields.converted !== 'both') {
-							qs.converted = additionalFields.converted;
-						}
-
-						responseData = await zohoApiRequest.call(
-							this,
-							'GET',
-							baseURL,
-							'/Contacts/search',
-							{},
-							qs,
-						);
-					}
+				// Route to appropriate resource handler
+				const nodeInstance = this as unknown as ZohoBigin;
+				if (resource === 'pipeline') {
+					responseData = await nodeInstance.handlePipelineOperations(this, operation, i, baseUrl);
+				} else if (resource === 'contact') {
+					responseData = await nodeInstance.handleContactOperations(this, operation, i, baseUrl);
+				} else if (resource === 'account') {
+					responseData = await nodeInstance.handleAccountOperations(this, operation, i, baseUrl);
+				} else if (resource === 'product') {
+					responseData = await nodeInstance.handleProductOperations(this, operation, i, baseUrl);
+				} else if (resource === 'task') {
+					responseData = await nodeInstance.handleTaskOperations(this, operation, i, baseUrl);
+				} else if (resource === 'event') {
+					responseData = await nodeInstance.handleEventOperations(this, operation, i, baseUrl);
+				} else if (resource === 'note') {
+					responseData = await nodeInstance.handleNoteOperations(this, operation, i, baseUrl);
+				} else {
+					throw new NodeOperationError(
+						this.getNode(),
+						`Unknown resource: ${resource}`,
+					);
 				}
 
-				// Return the response data
+				// Add response to return data
 				if (Array.isArray(responseData)) {
-					returnData.push(...responseData.map((item) => ({ json: item })));
+					returnData.push(...responseData.map(item => ({
+						json: item,
+						pairedItem: { item: i },
+					})));
 				} else {
-					returnData.push({ json: responseData });
+					returnData.push({
+						json: responseData,
+						pairedItem: { item: i },
+					});
 				}
 
 			} catch (error) {
 				if (this.continueOnFail()) {
 					returnData.push({
 						json: {
-							error: error.message,
+							error: (error as Error).message,
 						},
+						pairedItem: { item: i },
 					});
 					continue;
 				}
@@ -509,5 +183,894 @@ export class ZohoBigin implements INodeType {
 		}
 
 		return [returnData];
+	}
+
+	/**
+	 * Handle Pipeline (Deals) operations
+	 * Operations: list, get, create, update, delete, search
+	 *
+	 * @param context - The IExecuteFunctions instance
+	 * @param operation - The operation to perform
+	 * @param itemIndex - The index of the current item being processed
+	 * @param baseUrl - The base URL for the Bigin API
+	 */
+	private async handlePipelineOperations(
+		context: IExecuteFunctions,
+		operation: string,
+		itemIndex: number,
+		baseUrl: string,
+	): Promise<IDataObject | IDataObject[]> {
+		if (operation === 'listPipelines') {
+			const page = context.getNodeParameter('page', itemIndex, 1) as number;
+			const perPage = context.getNodeParameter('perPage', itemIndex, 200) as number;
+
+			const qs: IDataObject = {
+				page,
+				per_page: perPage,
+			};
+
+			const response = await zohoBiginApiRequest.call(
+				context,
+				'GET',
+				'/Pipelines',
+				{},
+				qs,
+			);
+
+			return response.data || [];
+
+		} else if (operation === 'getPipeline') {
+			const pipelineId = context.getNodeParameter('pipelineId', itemIndex) as string;
+
+			const response = await zohoBiginApiRequest.call(
+				context,
+				'GET',
+				`/Pipelines/${pipelineId}`,
+				{},
+				{},
+			);
+
+			return response.data?.[0] || {};
+
+		} else if (operation === 'createPipeline') {
+			const dealName = context.getNodeParameter('dealName', itemIndex) as string;
+			const additionalFields = context.getNodeParameter('additionalFields', itemIndex, {}) as IDataObject;
+
+			const body = {
+				data: [
+					{
+						Deal_Name: dealName,
+						...additionalFields,
+					},
+				],
+			};
+
+			const response = await zohoBiginApiRequest.call(
+				context,
+				'POST',
+				'/Pipelines',
+				body,
+				{},
+			);
+
+			return response.data?.[0]?.details || {};
+
+		} else if (operation === 'updatePipeline') {
+			const pipelineId = context.getNodeParameter('pipelineId', itemIndex) as string;
+			const updateFields = context.getNodeParameter('updateFields', itemIndex, {}) as IDataObject;
+
+			const body = {
+				data: [
+					{
+						id: pipelineId,
+						...updateFields,
+					},
+				],
+			};
+
+			const response = await zohoBiginApiRequest.call(
+				context,
+				'PUT',
+				'/Pipelines',
+				body,
+				{},
+			);
+
+			return response.data?.[0]?.details || {};
+
+		} else if (operation === 'deletePipeline') {
+			const pipelineId = context.getNodeParameter('pipelineId', itemIndex) as string;
+
+			const response = await zohoBiginApiRequest.call(
+				context,
+				'DELETE',
+				`/Pipelines/${pipelineId}`,
+				{},
+				{},
+			);
+
+			return response.data?.[0]?.details || {};
+
+		} else if (operation === 'searchPipelines') {
+			const searchTerm = context.getNodeParameter('searchTerm', itemIndex) as string;
+			const searchField = context.getNodeParameter('searchField', itemIndex, 'Deal_Name') as string;
+
+			const qs: IDataObject = {
+				criteria: `(${searchField}:contains:${searchTerm})`,
+			};
+
+			const response = await zohoBiginApiRequest.call(
+				context,
+				'GET',
+				'/Pipelines/search',
+				{},
+				qs,
+			);
+
+			return response.data || [];
+		}
+
+		throw new NodeOperationError(
+			context.getNode(),
+			`Unknown pipeline operation: ${operation}`,
+		);
+	}
+
+	/**
+	 * Handle Contact operations
+	 * Operations: list, get, create, update, delete, search
+	 */
+	private async handleContactOperations(
+		context: IExecuteFunctions,
+		operation: string,
+		itemIndex: number,
+		baseUrl: string,
+	): Promise<IDataObject | IDataObject[]> {
+		if (operation === 'listContacts') {
+			const page = context.getNodeParameter('page', itemIndex, 1) as number;
+			const perPage = context.getNodeParameter('perPage', itemIndex, 200) as number;
+
+			const qs: IDataObject = {
+				page,
+				per_page: perPage,
+			};
+
+			const response = await zohoBiginApiRequest.call(
+				context,
+				'GET',
+				'/Contacts',
+				{},
+				qs,
+			);
+
+			return response.data || [];
+
+		} else if (operation === 'getContact') {
+			const contactId = context.getNodeParameter('contactId', itemIndex) as string;
+
+			const response = await zohoBiginApiRequest.call(
+				context,
+				'GET',
+				`/Contacts/${contactId}`,
+				{},
+				{},
+			);
+
+			return response.data?.[0] || {};
+
+		} else if (operation === 'createContact') {
+			const lastName = context.getNodeParameter('lastName', itemIndex) as string;
+			const additionalFields = context.getNodeParameter('additionalFields', itemIndex, {}) as IDataObject;
+
+			const body = {
+				data: [
+					{
+						Last_Name: lastName,
+						...additionalFields,
+					},
+				],
+			};
+
+			const response = await zohoBiginApiRequest.call(
+				context,
+				'POST',
+				'/Contacts',
+				body,
+				{},
+			);
+
+			return response.data?.[0]?.details || {};
+
+		} else if (operation === 'updateContact') {
+			const contactId = context.getNodeParameter('contactId', itemIndex) as string;
+			const updateFields = context.getNodeParameter('updateFields', itemIndex, {}) as IDataObject;
+
+			const body = {
+				data: [
+					{
+						id: contactId,
+						...updateFields,
+					},
+				],
+			};
+
+			const response = await zohoBiginApiRequest.call(
+				context,
+				'PUT',
+				'/Contacts',
+				body,
+				{},
+			);
+
+			return response.data?.[0]?.details || {};
+
+		} else if (operation === 'deleteContact') {
+			const contactId = context.getNodeParameter('contactId', itemIndex) as string;
+
+			const response = await zohoBiginApiRequest.call(
+				context,
+				'DELETE',
+				`/Contacts/${contactId}`,
+				{},
+				{},
+			);
+
+			return response.data?.[0]?.details || {};
+
+		} else if (operation === 'searchContacts') {
+			const searchTerm = context.getNodeParameter('searchTerm', itemIndex) as string;
+			const searchField = context.getNodeParameter('searchField', itemIndex, 'Last_Name') as string;
+
+			const qs: IDataObject = {
+				criteria: `(${searchField}:contains:${searchTerm})`,
+			};
+
+			const response = await zohoBiginApiRequest.call(
+				context,
+				'GET',
+				'/Contacts/search',
+				{},
+				qs,
+			);
+
+			return response.data || [];
+		}
+
+		throw new NodeOperationError(
+			context.getNode(),
+			`Unknown contact operation: ${operation}`,
+		);
+	}
+
+	/**
+	 * Handle Account (Company) operations
+	 * Operations: list, get, create, update, delete, search
+	 */
+	private async handleAccountOperations(
+		context: IExecuteFunctions,
+		operation: string,
+		itemIndex: number,
+		baseUrl: string,
+	): Promise<IDataObject | IDataObject[]> {
+		if (operation === 'listAccounts') {
+			const page = context.getNodeParameter('page', itemIndex, 1) as number;
+			const perPage = context.getNodeParameter('perPage', itemIndex, 200) as number;
+
+			const qs: IDataObject = {
+				page,
+				per_page: perPage,
+			};
+
+			const response = await zohoBiginApiRequest.call(
+				context,
+				'GET',
+				'/Accounts',
+				{},
+				qs,
+			);
+
+			return response.data || [];
+
+		} else if (operation === 'getAccount') {
+			const accountId = context.getNodeParameter('accountId', itemIndex) as string;
+
+			const response = await zohoBiginApiRequest.call(
+				context,
+				'GET',
+				`/Accounts/${accountId}`,
+				{},
+				{},
+			);
+
+			return response.data?.[0] || {};
+
+		} else if (operation === 'createAccount') {
+			const accountName = context.getNodeParameter('accountName', itemIndex) as string;
+			const additionalFields = context.getNodeParameter('additionalFields', itemIndex, {}) as IDataObject;
+
+			const body = {
+				data: [
+					{
+						Account_Name: accountName,
+						...additionalFields,
+					},
+				],
+			};
+
+			const response = await zohoBiginApiRequest.call(
+				context,
+				'POST',
+				'/Accounts',
+				body,
+				{},
+			);
+
+			return response.data?.[0]?.details || {};
+
+		} else if (operation === 'updateAccount') {
+			const accountId = context.getNodeParameter('accountId', itemIndex) as string;
+			const updateFields = context.getNodeParameter('updateFields', itemIndex, {}) as IDataObject;
+
+			const body = {
+				data: [
+					{
+						id: accountId,
+						...updateFields,
+					},
+				],
+			};
+
+			const response = await zohoBiginApiRequest.call(
+				context,
+				'PUT',
+				'/Accounts',
+				body,
+				{},
+			);
+
+			return response.data?.[0]?.details || {};
+
+		} else if (operation === 'deleteAccount') {
+			const accountId = context.getNodeParameter('accountId', itemIndex) as string;
+
+			const response = await zohoBiginApiRequest.call(
+				context,
+				'DELETE',
+				`/Accounts/${accountId}`,
+				{},
+				{},
+			);
+
+			return response.data?.[0]?.details || {};
+
+		} else if (operation === 'searchAccounts') {
+			const searchTerm = context.getNodeParameter('searchTerm', itemIndex) as string;
+			const searchField = context.getNodeParameter('searchField', itemIndex, 'Account_Name') as string;
+
+			const qs: IDataObject = {
+				criteria: `(${searchField}:contains:${searchTerm})`,
+			};
+
+			const response = await zohoBiginApiRequest.call(
+				context,
+				'GET',
+				'/Accounts/search',
+				{},
+				qs,
+			);
+
+			return response.data || [];
+		}
+
+		throw new NodeOperationError(
+			context.getNode(),
+			`Unknown account operation: ${operation}`,
+		);
+	}
+
+	/**
+	 * Handle Product operations
+	 * Operations: list, get, create, update, delete, search
+	 */
+	private async handleProductOperations(
+		context: IExecuteFunctions,
+		operation: string,
+		itemIndex: number,
+		baseUrl: string,
+	): Promise<IDataObject | IDataObject[]> {
+		if (operation === 'listProducts') {
+			const page = context.getNodeParameter('page', itemIndex, 1) as number;
+			const perPage = context.getNodeParameter('perPage', itemIndex, 200) as number;
+
+			const qs: IDataObject = {
+				page,
+				per_page: perPage,
+			};
+
+			const response = await zohoBiginApiRequest.call(
+				context,
+				'GET',
+				'/Products',
+				{},
+				qs,
+			);
+
+			return response.data || [];
+
+		} else if (operation === 'getProduct') {
+			const productId = context.getNodeParameter('productId', itemIndex) as string;
+
+			const response = await zohoBiginApiRequest.call(
+				context,
+				'GET',
+				`/Products/${productId}`,
+				{},
+				{},
+			);
+
+			return response.data?.[0] || {};
+
+		} else if (operation === 'createProduct') {
+			const productName = context.getNodeParameter('productName', itemIndex) as string;
+			const additionalFields = context.getNodeParameter('additionalFields', itemIndex, {}) as IDataObject;
+
+			const body = {
+				data: [
+					{
+						Product_Name: productName,
+						...additionalFields,
+					},
+				],
+			};
+
+			const response = await zohoBiginApiRequest.call(
+				context,
+				'POST',
+				'/Products',
+				body,
+				{},
+			);
+
+			return response.data?.[0]?.details || {};
+
+		} else if (operation === 'updateProduct') {
+			const productId = context.getNodeParameter('productId', itemIndex) as string;
+			const updateFields = context.getNodeParameter('updateFields', itemIndex, {}) as IDataObject;
+
+			const body = {
+				data: [
+					{
+						id: productId,
+						...updateFields,
+					},
+				],
+			};
+
+			const response = await zohoBiginApiRequest.call(
+				context,
+				'PUT',
+				'/Products',
+				body,
+				{},
+			);
+
+			return response.data?.[0]?.details || {};
+
+		} else if (operation === 'deleteProduct') {
+			const productId = context.getNodeParameter('productId', itemIndex) as string;
+
+			const response = await zohoBiginApiRequest.call(
+				context,
+				'DELETE',
+				`/Products/${productId}`,
+				{},
+				{},
+			);
+
+			return response.data?.[0]?.details || {};
+
+		} else if (operation === 'searchProducts') {
+			const searchTerm = context.getNodeParameter('searchTerm', itemIndex) as string;
+			const searchField = context.getNodeParameter('searchField', itemIndex, 'Product_Name') as string;
+
+			const qs: IDataObject = {
+				criteria: `(${searchField}:contains:${searchTerm})`,
+			};
+
+			const response = await zohoBiginApiRequest.call(
+				context,
+				'GET',
+				'/Products/search',
+				{},
+				qs,
+			);
+
+			return response.data || [];
+		}
+
+		throw new NodeOperationError(
+			context.getNode(),
+			`Unknown product operation: ${operation}`,
+		);
+	}
+
+	/**
+	 * Handle Task operations
+	 * Operations: list, get, create, update, delete, search
+	 */
+	private async handleTaskOperations(
+		context: IExecuteFunctions,
+		operation: string,
+		itemIndex: number,
+		baseUrl: string,
+	): Promise<IDataObject | IDataObject[]> {
+		if (operation === 'listTasks') {
+			const page = context.getNodeParameter('page', itemIndex, 1) as number;
+			const perPage = context.getNodeParameter('perPage', itemIndex, 200) as number;
+
+			const qs: IDataObject = {
+				page,
+				per_page: perPage,
+			};
+
+			const response = await zohoBiginApiRequest.call(
+				context,
+				'GET',
+				'/Tasks',
+				{},
+				qs,
+			);
+
+			return response.data || [];
+
+		} else if (operation === 'getTask') {
+			const taskId = context.getNodeParameter('taskId', itemIndex) as string;
+
+			const response = await zohoBiginApiRequest.call(
+				context,
+				'GET',
+				`/Tasks/${taskId}`,
+				{},
+				{},
+			);
+
+			return response.data?.[0] || {};
+
+		} else if (operation === 'createTask') {
+			const subject = context.getNodeParameter('subject', itemIndex) as string;
+			const additionalFields = context.getNodeParameter('additionalFields', itemIndex, {}) as IDataObject;
+
+			const body = {
+				data: [
+					{
+						Subject: subject,
+						...additionalFields,
+					},
+				],
+			};
+
+			const response = await zohoBiginApiRequest.call(
+				context,
+				'POST',
+				'/Tasks',
+				body,
+				{},
+			);
+
+			return response.data?.[0]?.details || {};
+
+		} else if (operation === 'updateTask') {
+			const taskId = context.getNodeParameter('taskId', itemIndex) as string;
+			const updateFields = context.getNodeParameter('updateFields', itemIndex, {}) as IDataObject;
+
+			const body = {
+				data: [
+					{
+						id: taskId,
+						...updateFields,
+					},
+				],
+			};
+
+			const response = await zohoBiginApiRequest.call(
+				context,
+				'PUT',
+				'/Tasks',
+				body,
+				{},
+			);
+
+			return response.data?.[0]?.details || {};
+
+		} else if (operation === 'deleteTask') {
+			const taskId = context.getNodeParameter('taskId', itemIndex) as string;
+
+			const response = await zohoBiginApiRequest.call(
+				context,
+				'DELETE',
+				`/Tasks/${taskId}`,
+				{},
+				{},
+			);
+
+			return response.data?.[0]?.details || {};
+
+		} else if (operation === 'searchTasks') {
+			const searchTerm = context.getNodeParameter('searchTerm', itemIndex) as string;
+			const searchField = context.getNodeParameter('searchField', itemIndex, 'Subject') as string;
+
+			const qs: IDataObject = {
+				criteria: `(${searchField}:contains:${searchTerm})`,
+			};
+
+			const response = await zohoBiginApiRequest.call(
+				context,
+				'GET',
+				'/Tasks/search',
+				{},
+				qs,
+			);
+
+			return response.data || [];
+		}
+
+		throw new NodeOperationError(
+			context.getNode(),
+			`Unknown task operation: ${operation}`,
+		);
+	}
+
+	/**
+	 * Handle Event (Calendar) operations
+	 * Operations: list, get, create, update, delete, search
+	 */
+	private async handleEventOperations(
+		context: IExecuteFunctions,
+		operation: string,
+		itemIndex: number,
+		baseUrl: string,
+	): Promise<IDataObject | IDataObject[]> {
+		if (operation === 'listEvents') {
+			const page = context.getNodeParameter('page', itemIndex, 1) as number;
+			const perPage = context.getNodeParameter('perPage', itemIndex, 200) as number;
+
+			const qs: IDataObject = {
+				page,
+				per_page: perPage,
+			};
+
+			const response = await zohoBiginApiRequest.call(
+				context,
+				'GET',
+				'/Events',
+				{},
+				qs,
+			);
+
+			return response.data || [];
+
+		} else if (operation === 'getEvent') {
+			const eventId = context.getNodeParameter('eventId', itemIndex) as string;
+
+			const response = await zohoBiginApiRequest.call(
+				context,
+				'GET',
+				`/Events/${eventId}`,
+				{},
+				{},
+			);
+
+			return response.data?.[0] || {};
+
+		} else if (operation === 'createEvent') {
+			const eventTitle = context.getNodeParameter('eventTitle', itemIndex) as string;
+			const additionalFields = context.getNodeParameter('additionalFields', itemIndex, {}) as IDataObject;
+
+			const body = {
+				data: [
+					{
+						Event_Title: eventTitle,
+						...additionalFields,
+					},
+				],
+			};
+
+			const response = await zohoBiginApiRequest.call(
+				context,
+				'POST',
+				'/Events',
+				body,
+				{},
+			);
+
+			return response.data?.[0]?.details || {};
+
+		} else if (operation === 'updateEvent') {
+			const eventId = context.getNodeParameter('eventId', itemIndex) as string;
+			const updateFields = context.getNodeParameter('updateFields', itemIndex, {}) as IDataObject;
+
+			const body = {
+				data: [
+					{
+						id: eventId,
+						...updateFields,
+					},
+				],
+			};
+
+			const response = await zohoBiginApiRequest.call(
+				context,
+				'PUT',
+				'/Events',
+				body,
+				{},
+			);
+
+			return response.data?.[0]?.details || {};
+
+		} else if (operation === 'deleteEvent') {
+			const eventId = context.getNodeParameter('eventId', itemIndex) as string;
+
+			const response = await zohoBiginApiRequest.call(
+				context,
+				'DELETE',
+				`/Events/${eventId}`,
+				{},
+				{},
+			);
+
+			return response.data?.[0]?.details || {};
+
+		} else if (operation === 'searchEvents') {
+			const searchTerm = context.getNodeParameter('searchTerm', itemIndex) as string;
+			const searchField = context.getNodeParameter('searchField', itemIndex, 'Event_Title') as string;
+
+			const qs: IDataObject = {
+				criteria: `(${searchField}:contains:${searchTerm})`,
+			};
+
+			const response = await zohoBiginApiRequest.call(
+				context,
+				'GET',
+				'/Events/search',
+				{},
+				qs,
+			);
+
+			return response.data || [];
+		}
+
+		throw new NodeOperationError(
+			context.getNode(),
+			`Unknown event operation: ${operation}`,
+		);
+	}
+
+	/**
+	 * Handle Note operations
+	 * Operations: list, get, create, update, delete, search
+	 */
+	private async handleNoteOperations(
+		context: IExecuteFunctions,
+		operation: string,
+		itemIndex: number,
+		baseUrl: string,
+	): Promise<IDataObject | IDataObject[]> {
+		if (operation === 'listNotes') {
+			const page = context.getNodeParameter('page', itemIndex, 1) as number;
+			const perPage = context.getNodeParameter('perPage', itemIndex, 200) as number;
+
+			const qs: IDataObject = {
+				page,
+				per_page: perPage,
+			};
+
+			const response = await zohoBiginApiRequest.call(
+				context,
+				'GET',
+				'/Notes',
+				{},
+				qs,
+			);
+
+			return response.data || [];
+
+		} else if (operation === 'getNote') {
+			const noteId = context.getNodeParameter('noteId', itemIndex) as string;
+
+			const response = await zohoBiginApiRequest.call(
+				context,
+				'GET',
+				`/Notes/${noteId}`,
+				{},
+				{},
+			);
+
+			return response.data?.[0] || {};
+
+		} else if (operation === 'createNote') {
+			const noteTitle = context.getNodeParameter('noteTitle', itemIndex) as string;
+			const noteContent = context.getNodeParameter('noteContent', itemIndex) as string;
+			const additionalFields = context.getNodeParameter('additionalFields', itemIndex, {}) as IDataObject;
+
+			const body = {
+				data: [
+					{
+						Note_Title: noteTitle,
+						Note_Content: noteContent,
+						...additionalFields,
+					},
+				],
+			};
+
+			const response = await zohoBiginApiRequest.call(
+				context,
+				'POST',
+				'/Notes',
+				body,
+				{},
+			);
+
+			return response.data?.[0]?.details || {};
+
+		} else if (operation === 'updateNote') {
+			const noteId = context.getNodeParameter('noteId', itemIndex) as string;
+			const updateFields = context.getNodeParameter('updateFields', itemIndex, {}) as IDataObject;
+
+			const body = {
+				data: [
+					{
+						id: noteId,
+						...updateFields,
+					},
+				],
+			};
+
+			const response = await zohoBiginApiRequest.call(
+				context,
+				'PUT',
+				'/Notes',
+				body,
+				{},
+			);
+
+			return response.data?.[0]?.details || {};
+
+		} else if (operation === 'deleteNote') {
+			const noteId = context.getNodeParameter('noteId', itemIndex) as string;
+
+			const response = await zohoBiginApiRequest.call(
+				context,
+				'DELETE',
+				`/Notes/${noteId}`,
+				{},
+				{},
+			);
+
+			return response.data?.[0]?.details || {};
+
+		} else if (operation === 'searchNotes') {
+			const searchTerm = context.getNodeParameter('searchTerm', itemIndex) as string;
+			const searchField = context.getNodeParameter('searchField', itemIndex, 'Note_Title') as string;
+
+			const qs: IDataObject = {
+				criteria: `(${searchField}:contains:${searchTerm})`,
+			};
+
+			const response = await zohoBiginApiRequest.call(
+				context,
+				'GET',
+				'/Notes/search',
+				{},
+				qs,
+			);
+
+			return response.data || [];
+		}
+
+		throw new NodeOperationError(
+			context.getNode(),
+			`Unknown note operation: ${operation}`,
+		);
 	}
 }
