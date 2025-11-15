@@ -8,3 +8,12 @@ export * from './PaymentDescription';
 export * from './CustomerDescription';
 export * from './EventDescription';
 export * from './ItemDescription';
+
+// Bigin Module Descriptions
+export * from './BiginPipelinesDescription';
+export * from './BiginContactsDescription';
+export * from './BiginAccountsDescription';
+export * from './BiginProductsDescription';
+export * from './BiginTasksDescription';
+export * from './BiginEventsDescription';
+export * from './BiginNotesDescription';

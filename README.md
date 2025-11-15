@@ -49,6 +49,15 @@ Advanced email automation:
 - **Flexible Scheduling**: Multiple scheduling options including custom date/time
 - Timezone support for global operations
 
+### 👥 Zoho Bigin
+Lightweight CRM for small businesses:
+- **Contacts Management**: Create, update, retrieve, and delete contacts
+- **Search & Filter**: Advanced COQL-based search capabilities
+- **Pagination**: Efficient handling of large contact databases
+- **Custom Fields**: Support for custom field management
+- **Bulk Operations**: List and batch process contacts
+- **Phase 1**: Contacts resource (Deals, Products, and Activities coming soon)
+
 ## Installation
 
 ### Prerequisites
@@ -93,8 +102,9 @@ Before using the nodes, you need to create a Zoho application:
 3. Configure appropriate scopes based on the services you'll use:
    - **Sheets**: `ZohoSheet.operation.ALL`
    - **Tasks**: `ZohoTasks.operation.ALL`
-   - **Billing**: `ZohoBilling.operation.ALL`  
+   - **Billing**: `ZohoBilling.operation.ALL`
    - **Email**: `ZohoMail.operation.ALL`
+   - **Bigin**: `ZohoBigin.modules.ALL`
 
 ### 2. n8n Credential Configuration
 
@@ -273,6 +283,7 @@ Leverage n8n's expression editor for:
 Detailed API documentation is available in the `docs/` directory:
 - [Email API Documentation](docs/Email.md) - Complete email functionality reference
 - [Tasks API Documentation](docs/Tasks.md) - Task and project management details
+- [Bigin API Documentation](docs/Bigin.md) - Lightweight CRM integration reference
 
 ### Developer Documentation
 
@@ -289,6 +300,7 @@ These guides are based on the official [Zoho Calendar implementation pattern](ht
 n8n-nodes-zoho/
 ├── credentials/          # OAuth2 credential definitions
 ├── nodes/               # Node implementations
+│   ├── ZohoBigin.node.ts
 │   ├── ZohoBilling.node.ts
 │   ├── ZohoEmail.node.ts
 │   ├── ZohoSheets.node.ts
