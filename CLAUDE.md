@@ -4,7 +4,7 @@
 
 ## Project Overview
 
-**n8n-nodes-zoho** is a custom node package for n8n (workflow automation platform) that provides comprehensive integration with multiple Zoho APIs including Sheets, Tasks, Billing (Subscriptions), and Email services.
+**n8n-nodes-zoho** is a custom node package for n8n (workflow automation platform) that provides comprehensive integration with multiple Zoho APIs including Sheets, Tasks, Billing (Subscriptions), Email, and Bigin CRM services.
 
 - **Language**: TypeScript
 - **Platform**: n8n workflow automation
@@ -15,7 +15,7 @@
 ### Key Features
 - OAuth2 authentication with automatic token refresh
 - Multi-regional support (US, EU, IN, AU, CN)
-- Four specialized nodes: ZohoSheets, ZohoTasks, ZohoBilling, ZohoEmail
+- Five specialized nodes: ZohoSheets, ZohoTasks, ZohoBilling, ZohoEmail, ZohoBigin
 - Type-safe implementation with n8n-workflow integration
 
 ## Directory Structure
@@ -511,6 +511,14 @@ Note: Paths reference compiled `.js` files in `dist/`, not source `.ts` files.
 | `nodes/ZohoEmail.node.ts` | Email node | Email-related features |
 | `nodes/ZohoSheets.node.ts` | Sheets node | Spreadsheet operations |
 | `nodes/ZohoTasks.node.ts` | Tasks node | Task management features |
+| `nodes/ZohoBigin.node.ts` | Bigin CRM node | Adding CRM operations, resources |
+| `nodes/descriptions/BiginPipelinesDescription.ts` | Bigin Pipelines parameters | Pipeline/Deal operations |
+| `nodes/descriptions/BiginContactsDescription.ts` | Bigin Contacts parameters | Contact operations |
+| `nodes/descriptions/BiginAccountsDescription.ts` | Bigin Accounts parameters | Account operations |
+| `nodes/descriptions/BiginProductsDescription.ts` | Bigin Products parameters | Product operations |
+| `nodes/descriptions/BiginTasksDescription.ts` | Bigin Tasks parameters | Task operations |
+| `nodes/descriptions/BiginEventsDescription.ts` | Bigin Events parameters | Event operations |
+| `nodes/descriptions/BiginNotesDescription.ts` | Bigin Notes parameters | Note operations |
 | `nodes/GenericFunctions.ts` | Shared API utilities | Modifying API request logic |
 | `nodes/types.ts` | TypeScript types | Adding new type definitions |
 | `credentials/ZohoApi.credentials.ts` | OAuth2 config | Changing auth flow, scopes, endpoints |
@@ -523,6 +531,8 @@ Note: Paths reference compiled `.js` files in `dist/`, not source `.ts` files.
 
 - **Email API**: `docs/Email.md`
 - **Tasks API**: `docs/Tasks.md`
+- **Bigin API**: `docs/Bigin.md`
+- **Bigin Usage Examples**: `docs/BIGIN_EXAMPLES.md`
 - **Postman Collection**: `docs/Zoho Subscriptions API.postman_collection.json`
 
 ## Troubleshooting
@@ -572,7 +582,234 @@ Note: Paths reference compiled `.js` files in `dist/`, not source `.ts` files.
 - Document API quirks in code comments
 - Keep docs/ directory updated
 
+## Zoho Bigin Node
+
+Located in `nodes/ZohoBigin.node.ts`
+
+### Architecture
+
+The Bigin node is a comprehensive CRM integration designed for small businesses, implementing 7 core resources with full CRUD operations.
+
+- **Base URL**: Regional, determined by OAuth credentials via `getBiginBaseUrl()`
+- **Authentication**: OAuth2 with Bigin-specific scopes (`ZohoBigin.modules.ALL`)
+- **API Version**: v1
+- **Modules**: 7 resources (Pipelines, Contacts, Accounts, Products, Tasks, Events, Notes)
+
+### Key Files
+
+- `nodes/ZohoBigin.node.ts` - Main node implementation with execute method
+- `nodes/descriptions/Bigin*.ts` - Parameter descriptions for each resource
+- `nodes/GenericFunctions.ts` - Contains `zohoBiginApiRequest()` and `getBiginBaseUrl()`
+
+### Resources Implementation
+
+#### 1. Pipelines (Deals)
+**Handler**: `handlePipelinesOperations()`
+**Operations**: List, Get, Create, Update, Delete, Search
+**API Module**: `Deals`
+**Special Features**:
+- COQL-based search for advanced filtering
+- Stage management
+- Amount and closing date tracking
+- Lookup relationships to Contacts and Accounts
+
+#### 2. Contacts
+**Handler**: `handleContactsOperations()`
+**Operations**: List, Get, Create, Update, Delete, Search, Bulk Create, Bulk Update
+**API Module**: `Contacts`
+**Special Features**:
+- Bulk operations (up to 100 records)
+- Email and phone validation
+- Company lookup relationships
+
+#### 3. Accounts (Companies)
+**Handler**: `handleAccountsOperations()`
+**Operations**: List, Get, Create, Update, Delete, Search
+**API Module**: `Accounts`
+**Special Features**:
+- Website URL tracking
+- Industry and revenue fields
+- Parent-child account relationships
+
+#### 4. Products
+**Handler**: `handleProductsOperations()`
+**Operations**: List, Get, Create, Update, Delete
+**API Module**: `Products`
+**Special Features**:
+- Pricing management
+- Stock quantity tracking
+- Product categories
+
+#### 5. Tasks
+**Handler**: `handleTasksOperations()`
+**Operations**: List, Get, Create, Update, Delete
+**API Module**: `Tasks`
+**Special Features**:
+- Priority and status management
+- Due date tracking
+- Related_To lookup (link to Pipelines, Contacts, Accounts)
+
+#### 6. Events
+**Handler**: `handleEventsOperations()`
+**Operations**: List, Get, Create, Update, Delete
+**API Module**: `Events`
+**Special Features**:
+- DateTime handling (ISO 8601 format)
+- Participant management
+- Location and reminder fields
+
+#### 7. Notes
+**Handler**: `handleNotesOperations()`
+**Operations**: List, Get, Create, Update, Delete
+**API Module**: `Notes`
+**Special Features**:
+- Parent_Id lookup (attach to any module)
+- Rich text content support
+
+### Adding New Operations
+
+1. **Add operation to appropriate description file** (e.g., `BiginPipelinesDescription.ts`)
+2. **Add handler logic** in corresponding `handle{Resource}Operations()` method in `ZohoBigin.node.ts`
+3. **Use `zohoBiginApiRequest()`** for API calls:
+   ```typescript
+   const response = await zohoBiginApiRequest.call(
+       this,
+       'GET',                              // HTTP method
+       `/Deals/${pipelineId}`,            // Endpoint
+       {},                                 // Request body
+       {}                                  // Query params
+   );
+   ```
+4. **Test with actual API** using n8n instance
+5. **Update documentation** in `docs/Bigin.md` and `docs/BIGIN_EXAMPLES.md`
+
+### API Quirks and Best Practices
+
+#### Field Naming Convention
+- Bigin uses **underscore format**: `First_Name`, `Last_Name`, `Deal_Name`
+- Not camelCase: ❌ `firstName` ✅ `First_Name`
+
+#### Lookup Fields
+- Use object format with ID: `{"id": "4876876000000123456"}`
+- Example: `"Contact_Name": {"id": "4876876000000123456"}`
+
+#### Response Structure
+- All responses wrapped in `data` array: `response.data`
+- Success responses: `{data: [{details: {...}, status: "success"}]}`
+- Error responses: `{data: [{code: "ERROR_CODE", message: "...", status: "error"}]}`
+
+#### COQL Queries
+- Use module API name (e.g., `Deals` not `Pipelines`)
+- Format: `"select Field1, Field2 from Module where Condition order by Field"`
+- Date format: ISO 8601 (`2024-01-15T00:00:00-05:00`)
+- String matching: `like '%value%'`
+
+#### Bulk Operations
+- Maximum 100 records per bulk create/update
+- Array format: `[{record1}, {record2}, ...]`
+- Each record must include `id` field for updates
+
+#### Regional Base URLs
+Determined automatically by `getBiginBaseUrl()`:
+- US: `https://www.zohoapis.com/bigin/v1`
+- EU: `https://www.zohoapis.eu/bigin/v1`
+- AU: `https://www.zohoapis.com.au/bigin/v1`
+- IN: `https://www.zohoapis.in/bigin/v1`
+- CN: `https://www.zohoapis.com.cn/bigin/v1`
+
+### Code Organization Pattern
+
+The Bigin node follows a modular pattern:
+
+```typescript
+// Main execute method
+async execute(this: IExecuteFunctions): Promise<INodeExecutionData[][]> {
+    const items = this.getInputData();
+    const returnData: IDataObject[] = [];
+
+    for (let i = 0; i < items.length; i++) {
+        const resource = this.getNodeParameter('resource', i) as string;
+        const operation = this.getNodeParameter('operation', i) as string;
+
+        // Route to appropriate handler
+        let responseData: IDataObject;
+        if (resource === 'pipelines') {
+            responseData = await this.handlePipelinesOperations(operation, i);
+        } else if (resource === 'contacts') {
+            responseData = await this.handleContactsOperations(operation, i);
+        }
+        // ... more resources
+
+        returnData.push(responseData);
+    }
+
+    return [this.helpers.returnJsonArray(returnData)];
+}
+
+// Resource-specific handler
+async handlePipelinesOperations(operation: string, itemIndex: number): Promise<IDataObject> {
+    if (operation === 'create') {
+        const jsonData = this.getNodeParameter('jsonData', itemIndex) as string;
+        const body = JSON.parse(jsonData);
+        return await zohoBiginApiRequest.call(this, 'POST', '/Deals', {data: [body]}, {});
+    }
+    // ... more operations
+}
+```
+
+### Testing Considerations
+
+#### Unit Tests
+- Test `getBiginBaseUrl()` for all regions ✅ (see `GenericFunctions.test.ts`)
+- Mock API responses for handler methods
+- Validate JSON parsing and error handling
+
+#### Integration Tests
+- Use actual Bigin sandbox account
+- Test CRUD operations for each resource
+- Verify COQL search functionality
+- Test bulk operations with varying batch sizes
+
+#### Common Test Scenarios
+1. Create record → Verify in Bigin → Delete
+2. Search with COQL → Validate results
+3. Bulk create 100 records → Check success
+4. Update with lookup field → Verify relationship
+5. Invalid ID → Expect proper error message
+
+### Known Limitations
+
+1. **No Mass Delete**: Bigin API doesn't support bulk delete (must loop)
+2. **COQL Limitations**: No aggregation functions (SUM, COUNT, etc.)
+3. **Rate Limits**: Subject to Zoho API rate limits (implement delays for bulk ops)
+4. **Custom Fields**: Require field ID lookup (format: `cf_{field_id}`)
+5. **File Attachments**: Not currently supported in this implementation
+
+### Development Checklist for New Features
+
+- [ ] Add operation to description file
+- [ ] Implement handler logic with proper error handling
+- [ ] Use correct API endpoint and method
+- [ ] Handle JSON parsing with try-catch
+- [ ] Add displayOptions for conditional parameters
+- [ ] Test with actual Bigin account
+- [ ] Update `docs/Bigin.md` API reference
+- [ ] Add examples to `docs/BIGIN_EXAMPLES.md`
+- [ ] Add unit tests if new helper functions created
+- [ ] Run `npm run build` and verify compilation
+- [ ] Test in n8n workflow
+
 ## Recent Changes & Context
+
+### Zoho Bigin Integration (Phase 1-5 Complete)
+Full implementation of Zoho Bigin CRM node with comprehensive documentation:
+- **7 Resources**: Pipelines, Contacts, Accounts, Products, Tasks, Events, Notes
+- **Full CRUD**: All resources support Create, Read, Update, Delete operations
+- **Advanced Features**: COQL search, bulk operations, lookup relationships
+- **Multi-regional**: Automatic base URL detection via `getBiginBaseUrl()`
+- **Type-safe**: Full TypeScript implementation with proper error handling
+- **Documentation**: Complete API docs (`docs/Bigin.md`) and usage examples (`docs/BIGIN_EXAMPLES.md`)
+- **Testing**: Unit tests for core functions, integration-ready structure
 
 ### Customer Status Filter Implementation
 Recent commits have focused on integrating status filtering for customers:
