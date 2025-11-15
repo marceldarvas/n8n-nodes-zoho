@@ -1,4 +1,5 @@
 import type { INodeProperties } from 'n8n-workflow';
+import { paginationFields } from './SharedFields';
 
 export const productOperations: INodeProperties[] = [
 	{
@@ -22,9 +23,12 @@ export const productOperations: INodeProperties[] = [
 
 export const productFields: INodeProperties[] = [
 	{
-		displayName: 'Product ID',
+		displayName: 'Product',
 		name: 'productId',
-		type: 'string',
+		type: 'options',
+		typeOptions: {
+			loadOptionsMethod: 'getProducts',
+		},
 		default: '',
 		required: true,
 		displayOptions: {
@@ -33,7 +37,7 @@ export const productFields: INodeProperties[] = [
 				operation: ['getProduct', 'updateProduct', 'deleteProduct'],
 			},
 		},
-		description: 'ID of the product',
+		description: 'The product to operate on',
 	},
 	// Create Product Required Fields
 	{
@@ -90,4 +94,5 @@ export const productFields: INodeProperties[] = [
 			},
 		],
 	},
+	...paginationFields('product', 'listProducts'),
 ];

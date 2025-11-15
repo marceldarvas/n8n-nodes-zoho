@@ -1,14 +1,16 @@
 import type {
     IDataObject,
     IExecuteFunctions,
+    ILoadOptionsFunctions,
     INodeExecutionData,
+    INodePropertyOptions,
     INodeType,
     INodeTypeDescription,
 } from 'n8n-workflow';
 
 import { NodeConnectionTypes, NodeOperationError } from 'n8n-workflow';
 
-import { getSubscriptionsBaseUrl, zohoSubscriptionsApiRequest } from './GenericFunctions';
+import { getSubscriptionsBaseUrl, zohoSubscriptionsApiRequest, zohoSubscriptionsApiRequestAllItems } from './GenericFunctions';
 import {
     organizationId,
     jsonDataField,
@@ -107,6 +109,141 @@ export class ZohoBilling implements INodeType {
         ],
     };
 
+    methods = {
+        loadOptions: {
+            /**
+             * Get list of organizations from Zoho Subscriptions
+             */
+            async getOrganizations(this: ILoadOptionsFunctions): Promise<INodePropertyOptions[]> {
+                try {
+                    const credentials = await this.getCredentials('zohoApi');
+                    const baseURL = getSubscriptionsBaseUrl(credentials.accessTokenUrl as string);
+
+                    const responseData = await zohoSubscriptionsApiRequest.call(
+                        this,
+                        'GET',
+                        `${baseURL}/organizations`,
+                        {},
+                        {},
+                        '', // Empty org ID for organizations endpoint
+                    );
+
+                    if (responseData.organizations && Array.isArray(responseData.organizations)) {
+                        return responseData.organizations.map((org: IDataObject) => ({
+                            name: org.name as string,
+                            value: org.organization_id as string,
+                        }));
+                    }
+                    return [];
+                } catch (error) {
+                    throw new NodeOperationError(this.getNode(), 'Failed to fetch organizations');
+                }
+            },
+
+            /**
+             * Get list of customers from Zoho Subscriptions
+             */
+            async getCustomers(this: ILoadOptionsFunctions): Promise<INodePropertyOptions[]> {
+                try {
+                    const orgId = this.getNodeParameter('organizationId') as string;
+                    if (!orgId) {
+                        throw new NodeOperationError(this.getNode(), 'Organization ID is required to fetch customers');
+                    }
+
+                    const credentials = await this.getCredentials('zohoApi');
+                    const baseURL = getSubscriptionsBaseUrl(credentials.accessTokenUrl as string);
+
+                    const responseData = await zohoSubscriptionsApiRequest.call(
+                        this,
+                        'GET',
+                        `${baseURL}/customers`,
+                        {},
+                        { per_page: 200 },
+                        orgId,
+                    );
+
+                    if (responseData.customers && Array.isArray(responseData.customers)) {
+                        return responseData.customers.map((customer: IDataObject) => ({
+                            name: customer.display_name as string,
+                            value: customer.customer_id as string,
+                        }));
+                    }
+                    return [];
+                } catch (error) {
+                    throw new NodeOperationError(this.getNode(), 'Failed to fetch customers');
+                }
+            },
+
+            /**
+             * Get list of products from Zoho Subscriptions
+             */
+            async getProducts(this: ILoadOptionsFunctions): Promise<INodePropertyOptions[]> {
+                try {
+                    const orgId = this.getNodeParameter('organizationId') as string;
+                    if (!orgId) {
+                        throw new NodeOperationError(this.getNode(), 'Organization ID is required to fetch products');
+                    }
+
+                    const credentials = await this.getCredentials('zohoApi');
+                    const baseURL = getSubscriptionsBaseUrl(credentials.accessTokenUrl as string);
+
+                    const responseData = await zohoSubscriptionsApiRequest.call(
+                        this,
+                        'GET',
+                        `${baseURL}/products`,
+                        {},
+                        { per_page: 200 },
+                        orgId,
+                    );
+
+                    if (responseData.products && Array.isArray(responseData.products)) {
+                        return responseData.products.map((product: IDataObject) => ({
+                            name: product.name as string,
+                            value: product.product_id as string,
+                        }));
+                    }
+                    return [];
+                } catch (error) {
+                    throw new NodeOperationError(this.getNode(), 'Failed to fetch products');
+                }
+            },
+
+            /**
+             * Get list of plans from Zoho Subscriptions
+             */
+            async getPlans(this: ILoadOptionsFunctions): Promise<INodePropertyOptions[]> {
+                try {
+                    const orgId = this.getNodeParameter('organizationId') as string;
+                    if (!orgId) {
+                        throw new NodeOperationError(this.getNode(), 'Organization ID is required to fetch plans');
+                    }
+
+                    const credentials = await this.getCredentials('zohoApi');
+                    const baseURL = getSubscriptionsBaseUrl(credentials.accessTokenUrl as string);
+
+                    const responseData = await zohoSubscriptionsApiRequest.call(
+                        this,
+                        'GET',
+                        `${baseURL}/plans`,
+                        {},
+                        { per_page: 200 },
+                        orgId,
+                    );
+
+                    if (responseData.plans && Array.isArray(responseData.plans)) {
+                        return responseData.plans.map((plan: IDataObject) => ({
+                            name: plan.name as string,
+                            value: plan.plan_code as string,
+                        }));
+                    }
+                    return [];
+                } catch (error) {
+                    throw new NodeOperationError(this.getNode(), 'Failed to fetch plans');
+                }
+            },
+        },
+    };
+
     async execute(this: IExecuteFunctions): Promise<INodeExecutionData[][]> {
         const credentials = await this.getCredentials('zohoApi');
         const baseURL = getSubscriptionsBaseUrl(credentials.accessTokenUrl as string);
@@ -116,9 +253,34 @@ export class ZohoBilling implements INodeType {
             try {
                 const operation = this.getNodeParameter('operation', i) as string;
                 const orgId = this.getNodeParameter('organizationId', i) as string;
-            if (operation === 'listProducts') { // <-- Correctly checks for 'listProducts'
-                const responseData = await zohoSubscriptionsApiRequest.call(this, 'GET', `${baseURL}/products`, {}, {}, orgId);
-                returnData.push({json: responseData as IDataObject, pairedItem: { item: i }});
+            if (operation === 'listProducts') {
+                const returnAll = this.getNodeParameter('returnAll', i) as boolean;
+                let responseData;
+
+                if (returnAll) {
+                    responseData = await zohoSubscriptionsApiRequestAllItems.call(
+                        this,
+                        'GET',
+                        `${baseURL}/products`,
+                        {},
+                        {},
+                        orgId,
+                        'products',
+                    );
+                } else {
+                    const limit = this.getNodeParameter('limit', i) as number;
+                    const response = await zohoSubscriptionsApiRequest.call(
+                        this,
+                        'GET',
+                        `${baseURL}/products`,
+                        {},
+                        { per_page: limit },
+                        orgId,
+                    );
+                    responseData = response.products || [];
+                }
+
+                returnData.push({json: { products: responseData }, pairedItem: { item: i }});
             } else if (operation === 'getProduct') {
                 const productId = this.getNodeParameter('productId', i) as string;
                 const responseData = await zohoSubscriptionsApiRequest.call(this, 'GET', `${baseURL}/products/${productId}`, {}, {}, orgId);
@@ -149,8 +311,33 @@ export class ZohoBilling implements INodeType {
                 const responseData = await zohoSubscriptionsApiRequest.call(this, 'DELETE', `${baseURL}/products/${productId}`, {}, {}, orgId);
                 returnData.push({json: responseData as IDataObject, pairedItem: { item: i }});
             } else if (operation === 'listPlans') {
-                const responseData = await zohoSubscriptionsApiRequest.call(this, 'GET', `${baseURL}/plans`, {}, {}, orgId);
-                returnData.push({json: responseData as IDataObject, pairedItem: { item: i }});
+                const returnAll = this.getNodeParameter('returnAll', i) as boolean;
+                let responseData;
+
+                if (returnAll) {
+                    responseData = await zohoSubscriptionsApiRequestAllItems.call(
+                        this,
+                        'GET',
+                        `${baseURL}/plans`,
+                        {},
+                        {},
+                        orgId,
+                        'plans',
+                    );
+                } else {
+                    const limit = this.getNodeParameter('limit', i) as number;
+                    const response = await zohoSubscriptionsApiRequest.call(
+                        this,
+                        'GET',
+                        `${baseURL}/plans`,
+                        {},
+                        { per_page: limit },
+                        orgId,
+                    );
+                    responseData = response.plans || [];
+                }
+
+                returnData.push({json: { plans: responseData }, pairedItem: { item: i }});
             } else if (operation === 'getPlan') {
                 const planId = this.getNodeParameter('planId', i) as string;
                 const responseData = await zohoSubscriptionsApiRequest.call(this, 'GET', `${baseURL}/plans/${planId}`, {}, {}, orgId);
@@ -181,8 +368,33 @@ export class ZohoBilling implements INodeType {
                 const responseData = await zohoSubscriptionsApiRequest.call(this, 'DELETE', `${baseURL}/plans/${planId}`, {}, {}, orgId);
                 returnData.push({json: responseData as IDataObject, pairedItem: { item: i }});
             } else if (operation === 'listAddons') {
-                const responseData = await zohoSubscriptionsApiRequest.call(this, 'GET', `${baseURL}/addons`, {}, {}, orgId);
-                returnData.push({json: responseData as IDataObject, pairedItem: { item: i }});
+                const returnAll = this.getNodeParameter('returnAll', i) as boolean;
+                let responseData;
+
+                if (returnAll) {
+                    responseData = await zohoSubscriptionsApiRequestAllItems.call(
+                        this,
+                        'GET',
+                        `${baseURL}/addons`,
+                        {},
+                        {},
+                        orgId,
+                        'addons',
+                    );
+                } else {
+                    const limit = this.getNodeParameter('limit', i) as number;
+                    const response = await zohoSubscriptionsApiRequest.call(
+                        this,
+                        'GET',
+                        `${baseURL}/addons`,
+                        {},
+                        { per_page: limit },
+                        orgId,
+                    );
+                    responseData = response.addons || [];
+                }
+
+                returnData.push({json: { addons: responseData }, pairedItem: { item: i }});
             } else if (operation === 'getAddon') {
                 const addonId = this.getNodeParameter('addonId', i) as string;
                 const responseData = await zohoSubscriptionsApiRequest.call(this, 'GET', `${baseURL}/addons/${addonId}`, {}, {}, orgId);
@@ -216,7 +428,9 @@ export class ZohoBilling implements INodeType {
                 const subscriptionId = this.getNodeParameter('subscriptionId', i) as string;
                 const customerId = this.getNodeParameter('customerId', i) as string;
                 const filterBy = this.getNodeParameter('filterBy', i) as string;
+                const returnAll = this.getNodeParameter('returnAll', i) as boolean;
                 const qs: IDataObject = {};
+
                 if (subscriptionId) {
                     qs.subscription_id = subscriptionId;
                 }
@@ -226,25 +440,41 @@ export class ZohoBilling implements INodeType {
                 if (filterBy && filterBy !== 'All') {
                     qs.filter_by = filterBy;
                 }
-                const page = this.getNodeParameter('page', i) as number;
-                const perPage = this.getNodeParameter('perPage', i) as number;
-                if (page) {
-                    qs.page = page;
-                }
-                if (perPage) {
-                    qs.per_page = perPage;
+
+                let responseData;
+                if (returnAll) {
+                    responseData = await zohoSubscriptionsApiRequestAllItems.call(
+                        this,
+                        'GET',
+                        `${baseURL}/invoices`,
+                        {},
+                        qs,
+                        orgId,
+                        'invoices',
+                    );
+                } else {
+                    const limit = this.getNodeParameter('limit', i) as number;
+                    qs.per_page = limit;
+                    const response = await zohoSubscriptionsApiRequest.call(
+                        this,
+                        'GET',
+                        `${baseURL}/invoices`,
+                        {},
+                        qs,
+                        orgId,
+                    );
+                    responseData = response.invoices || [];
                 }
 
-                const responseData = await zohoSubscriptionsApiRequest.call(this, 'GET', `${baseURL}/invoices`, {}, qs, orgId);
-                returnData.push({json: responseData as IDataObject, pairedItem: { item: i }});
+                returnData.push({json: { invoices: responseData }, pairedItem: { item: i }});
             } else if (operation === 'listSubscriptions') {
                 // build optional filters and paging parameters
                 const filters = this.getNodeParameter('filters', i, {filter: []}) as {
                     filter?: Array<{ filterBy: string; filterValue: string }>;
                 };
-                const page = this.getNodeParameter('page', i) as number;
-                const perPage = this.getNodeParameter('perPage', i) as number;
+                const returnAll = this.getNodeParameter('returnAll', i) as boolean;
                 const qs: IDataObject = {};
+
                 if (filters.filter) {
                     for (const f of filters.filter) {
                         if (f.filterValue) {
@@ -252,21 +482,33 @@ export class ZohoBilling implements INodeType {
                         }
                     }
                 }
-                if (page) {
-                    qs.page = page;
+
+                let responseData;
+                if (returnAll) {
+                    responseData = await zohoSubscriptionsApiRequestAllItems.call(
+                        this,
+                        'GET',
+                        `${baseURL}/subscriptions`,
+                        {},
+                        qs,
+                        orgId,
+                        'subscriptions',
+                    );
+                } else {
+                    const limit = this.getNodeParameter('limit', i) as number;
+                    qs.per_page = limit;
+                    const response = await zohoSubscriptionsApiRequest.call(
+                        this,
+                        'GET',
+                        `${baseURL}/subscriptions`,
+                        {},
+                        qs,
+                        orgId,
+                    );
+                    responseData = response.subscriptions || [];
                 }
-                if (perPage) {
-                    qs.per_page = perPage;
-                }
-                const responseData = await zohoSubscriptionsApiRequest.call(
-                    this,
-                    'GET',
-                    `${baseURL}/subscriptions`,
-                    {},
-                    qs,
-                    orgId,
-                );
-                returnData.push({json: responseData as IDataObject, pairedItem: { item: i }});
+
+                returnData.push({json: { subscriptions: responseData }, pairedItem: { item: i }});
             } else if (operation === 'getSubscription') {
                 const subscriptionId = this.getNodeParameter('subscriptionId', i) as string;
                 const responseData = await zohoSubscriptionsApiRequest.call(this, 'GET', `${baseURL}/subscriptions/${subscriptionId}`, {}, {}, orgId);
@@ -329,27 +571,93 @@ export class ZohoBilling implements INodeType {
                 const responseData = await zohoSubscriptionsApiRequest.call(this, 'GET', `${baseURL}/payments/${paymentId}`, {}, {}, orgId);
                 returnData.push({json: responseData as IDataObject, pairedItem: { item: i }});
             } else if (operation === 'listPayments') {
-                const page = this.getNodeParameter('page', i) as number;
-                const perPage = this.getNodeParameter('perPage', i) as number;
-                const qs: IDataObject = {};
-                if (page) {
-                    qs.page = page;
+                const returnAll = this.getNodeParameter('returnAll', i) as boolean;
+                let responseData;
+
+                if (returnAll) {
+                    responseData = await zohoSubscriptionsApiRequestAllItems.call(
+                        this,
+                        'GET',
+                        `${baseURL}/payments`,
+                        {},
+                        {},
+                        orgId,
+                        'payments',
+                    );
+                } else {
+                    const limit = this.getNodeParameter('limit', i) as number;
+                    const response = await zohoSubscriptionsApiRequest.call(
+                        this,
+                        'GET',
+                        `${baseURL}/payments`,
+                        {},
+                        { per_page: limit },
+                        orgId,
+                    );
+                    responseData = response.payments || [];
                 }
-                if (perPage) {
-                    qs.per_page = perPage;
-                }
-                const responseData = await zohoSubscriptionsApiRequest.call(this, 'GET', `${baseURL}/payments`, {}, qs, orgId);
-                returnData.push({json: responseData as IDataObject, pairedItem: { item: i }});
+
+                returnData.push({json: { payments: responseData }, pairedItem: { item: i }});
             } else if (operation === 'listEvents') {
-                const responseData = await zohoSubscriptionsApiRequest.call(this, 'GET', `${baseURL}/events`, {}, {}, orgId);
-                returnData.push({json: responseData as IDataObject, pairedItem: { item: i }});
+                const returnAll = this.getNodeParameter('returnAll', i) as boolean;
+                let responseData;
+
+                if (returnAll) {
+                    responseData = await zohoSubscriptionsApiRequestAllItems.call(
+                        this,
+                        'GET',
+                        `${baseURL}/events`,
+                        {},
+                        {},
+                        orgId,
+                        'events',
+                    );
+                } else {
+                    const limit = this.getNodeParameter('limit', i) as number;
+                    const response = await zohoSubscriptionsApiRequest.call(
+                        this,
+                        'GET',
+                        `${baseURL}/events`,
+                        {},
+                        { per_page: limit },
+                        orgId,
+                    );
+                    responseData = response.events || [];
+                }
+
+                returnData.push({json: { events: responseData }, pairedItem: { item: i }});
             } else if (operation === 'getEvent') {
                 const eventId = this.getNodeParameter('eventId', i) as string;
                 const responseData = await zohoSubscriptionsApiRequest.call(this, 'GET', `${baseURL}/events/${eventId}`, {}, {}, orgId);
                 returnData.push({json: responseData as IDataObject, pairedItem: { item: i }});
             } else if (operation === 'listItems') {
-                const responseData = await zohoSubscriptionsApiRequest.call(this, 'GET', `${baseURL}/items`, {}, {}, orgId);
-                returnData.push({json: responseData as IDataObject, pairedItem: { item: i }});
+                const returnAll = this.getNodeParameter('returnAll', i) as boolean;
+                let responseData;
+
+                if (returnAll) {
+                    responseData = await zohoSubscriptionsApiRequestAllItems.call(
+                        this,
+                        'GET',
+                        `${baseURL}/items`,
+                        {},
+                        {},
+                        orgId,
+                        'items',
+                    );
+                } else {
+                    const limit = this.getNodeParameter('limit', i) as number;
+                    const response = await zohoSubscriptionsApiRequest.call(
+                        this,
+                        'GET',
+                        `${baseURL}/items`,
+                        {},
+                        { per_page: limit },
+                        orgId,
+                    );
+                    responseData = response.items || [];
+                }
+
+                returnData.push({json: { items: responseData }, pairedItem: { item: i }});
             } else if (operation === 'getItem') {
                 const itemId = this.getNodeParameter('itemId', i) as string;
                 const responseData = await zohoSubscriptionsApiRequest.call(this, 'GET', `${baseURL}/items/${itemId}`, {}, {}, orgId);
@@ -363,16 +671,8 @@ export class ZohoBilling implements INodeType {
                 const responseData = await zohoSubscriptionsApiRequest.call(this, 'GET', `${baseURL}/customers/reference/${referenceId}`, {}, qs, orgId);
                 returnData.push({json: responseData as IDataObject, pairedItem: { item: i }});
             } else if (operation === 'listCustomers') {
-                const page = this.getNodeParameter('page', i) as number;
-                const perPage = this.getNodeParameter('perPage', i) as number;
+                const returnAll = this.getNodeParameter('returnAll', i) as boolean;
                 const qs: IDataObject = {};
-                if (page) {
-                    qs.page = page;
-                }
-                if (perPage) {
-                    qs.per_page = perPage;
-                }
-
 
                 // Apply any customer filters (contact number, email, custom field)
                 const filters = this.getNodeParameter('filters', i, {filter: []}) as {
@@ -393,8 +693,32 @@ export class ZohoBilling implements INodeType {
                     }
                 }
 
-                const responseData = await zohoSubscriptionsApiRequest.call(this, 'GET', `${baseURL}/customers`, {}, qs, orgId);
-                returnData.push({json: responseData as IDataObject, pairedItem: { item: i }});
+                let responseData;
+                if (returnAll) {
+                    responseData = await zohoSubscriptionsApiRequestAllItems.call(
+                        this,
+                        'GET',
+                        `${baseURL}/customers`,
+                        {},
+                        qs,
+                        orgId,
+                        'customers',
+                    );
+                } else {
+                    const limit = this.getNodeParameter('limit', i) as number;
+                    qs.per_page = limit;
+                    const response = await zohoSubscriptionsApiRequest.call(
+                        this,
+                        'GET',
+                        `${baseURL}/customers`,
+                        {},
+                        qs,
+                        orgId,
+                    );
+                    responseData = response.customers || [];
+                }
+
+                returnData.push({json: { customers: responseData }, pairedItem: { item: i }});
             } else if (operation === 'getCustomer') {
                 const customerId = this.getNodeParameter('customerId', i) as string;
                 const responseData = await zohoSubscriptionsApiRequest.call(this, 'GET', `${baseURL}/customers/${customerId}`, {}, {}, orgId);
