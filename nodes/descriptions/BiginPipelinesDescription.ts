@@ -17,6 +17,8 @@ export const pipelinesOperations: INodeProperties[] = [
 			{ name: 'Update', value: 'updatePipeline', description: 'Update a pipeline record' },
 			{ name: 'Delete', value: 'deletePipeline', description: 'Delete a pipeline record' },
 			{ name: 'Search', value: 'searchPipelines', description: 'Search pipeline records' },
+			{ name: 'Bulk Create', value: 'bulkCreatePipelines', description: 'Create multiple pipeline records' },
+			{ name: 'Bulk Update', value: 'bulkUpdatePipelines', description: 'Update multiple pipeline records' },
 		],
 		default: 'listPipelines',
 	},
@@ -238,5 +240,22 @@ export const pipelinesFields: INodeProperties[] = [
 			},
 		},
 		description: 'Search term to find in pipeline records',
+	},
+
+	// Bulk operations - Pipelines Data (JSON)
+	{
+		displayName: 'Pipelines Data',
+		name: 'pipelinesData',
+		type: 'json',
+		default: '[]',
+		required: true,
+		displayOptions: {
+			show: {
+				resource: ['pipeline'],
+				operation: ['bulkCreatePipelines', 'bulkUpdatePipelines'],
+			},
+		},
+		description: 'Array of pipeline objects (max 100)',
+		placeholder: '[{"Deal_Name": "Deal 1", "Amount": 5000}, {"Deal_Name": "Deal 2", "Amount": 10000}]',
 	},
 ];

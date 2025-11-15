@@ -568,6 +568,141 @@ Additional Fields:
 
 ---
 
+## Bulk Operations
+
+The Zoho Bigin node supports bulk operations for efficiently creating and updating multiple records in a single API call. Bulk operations are available for Contacts, Pipelines, Accounts, and Products.
+
+### Bulk Create
+
+Create multiple records in a single operation (up to 100 records per batch).
+
+**Operations Available**:
+- Bulk Create Contacts
+- Bulk Create Pipelines
+- Bulk Create Accounts
+- Bulk Create Products
+
+**Example JSON Data (Contacts)**:
+```json
+[
+  {
+    "First_Name": "John",
+    "Last_Name": "Doe",
+    "Email": "john.doe@example.com",
+    "Phone": "+1-555-0123"
+  },
+  {
+    "First_Name": "Jane",
+    "Last_Name": "Smith",
+    "Email": "jane.smith@example.com",
+    "Phone": "+1-555-0124"
+  }
+]
+```
+
+**Example JSON Data (Pipelines)**:
+```json
+[
+  {
+    "Deal_Name": "Enterprise Deal 1",
+    "Amount": 50000,
+    "Stage": "Qualification",
+    "Closing_Date": "2025-12-31"
+  },
+  {
+    "Deal_Name": "Enterprise Deal 2",
+    "Amount": 75000,
+    "Stage": "Needs Analysis",
+    "Closing_Date": "2025-12-15"
+  }
+]
+```
+
+### Bulk Update
+
+Update multiple records in a single operation (up to 100 records per batch). Each record must include an `id` field.
+
+**Operations Available**:
+- Bulk Update Contacts
+- Bulk Update Pipelines
+- Bulk Update Accounts
+- Bulk Update Products
+
+**Example JSON Data (Contacts)**:
+```json
+[
+  {
+    "id": "4150868000000224001",
+    "Phone": "+1-555-9999",
+    "Title": "Senior Manager"
+  },
+  {
+    "id": "4150868000000224002",
+    "Email": "updated@example.com",
+    "Title": "Director"
+  }
+]
+```
+
+**Example JSON Data (Pipelines)**:
+```json
+[
+  {
+    "id": "4150868000000224005",
+    "Stage": "Closed Won",
+    "Amount": 60000
+  },
+  {
+    "id": "4150868000000224006",
+    "Stage": "Negotiation/Review",
+    "Probability": 75
+  }
+]
+```
+
+### Bulk Operation Features
+
+- **Automatic Batching**: If you provide more than 100 records, the node automatically splits them into batches
+- **Rate Limiting**: Automatic 1-second delay between batches to respect API limits
+- **Error Handling**: Individual record errors are returned in the response, allowing partial success
+- **Progress Tracking**: All results (success and failures) are collected and returned
+
+### Response Format
+
+Bulk operations return an array of results for each record:
+
+```json
+[
+  {
+    "code": "SUCCESS",
+    "details": {
+      "id": "4150868000000624001",
+      "Created_Time": "2025-11-15T10:00:00+00:00"
+    },
+    "message": "record added"
+  },
+  {
+    "code": "DUPLICATE_DATA",
+    "details": {
+      "id": "4150868000000624002"
+    },
+    "message": "duplicate data"
+  }
+]
+```
+
+### Best Practices
+
+1. **Batch Size**: Keep batches under 100 records per operation
+2. **Validation**: Validate data structure before sending to avoid partial failures
+3. **Error Handling**: Check response codes for each record to identify failures
+4. **Required Fields**:
+   - Bulk Create: Include all required fields (e.g., `Last_Name` for Contacts, `Deal_Name` for Pipelines)
+   - Bulk Update: Always include the `id` field
+5. **Performance**: Use bulk operations instead of looping individual create/update operations for better performance
+
+---
+
 ## Troubleshooting
 
 ### Issue: "Invalid Token" Error
@@ -614,7 +749,7 @@ Additional Fields:
 
 ---
 
-**Last Updated**: 2025-11-14
-**Node Version**: 1.0 (Phase 1)
+**Last Updated**: 2025-11-15
+**Node Version**: 1.1 (Phase 6 - Bulk Operations)
 **API Version**: v2
 **Status**: Production Ready

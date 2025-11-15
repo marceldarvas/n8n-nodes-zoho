@@ -17,6 +17,8 @@ export const accountsOperations: INodeProperties[] = [
 			{ name: 'Update', value: 'updateAccount', description: 'Update a company/account' },
 			{ name: 'Delete', value: 'deleteAccount', description: 'Delete a company/account' },
 			{ name: 'Search', value: 'searchAccounts', description: 'Search companies/accounts' },
+			{ name: 'Bulk Create', value: 'bulkCreateAccounts', description: 'Create multiple companies/accounts' },
+			{ name: 'Bulk Update', value: 'bulkUpdateAccounts', description: 'Update multiple companies/accounts' },
 		],
 		default: 'listAccounts',
 	},
@@ -319,5 +321,22 @@ export const accountsFields: INodeProperties[] = [
 				],
 			},
 		],
+	},
+
+	// Bulk operations - Accounts Data (JSON)
+	{
+		displayName: 'Accounts Data',
+		name: 'accountsData',
+		type: 'json',
+		default: '[]',
+		required: true,
+		displayOptions: {
+			show: {
+				resource: ['account'],
+				operation: ['bulkCreateAccounts', 'bulkUpdateAccounts'],
+			},
+		},
+		description: 'Array of account objects (max 100)',
+		placeholder: '[{"Account_Name": "Company 1", "Phone": "123-456-7890"}, {"Account_Name": "Company 2", "Phone": "098-765-4321"}]',
 	},
 ];

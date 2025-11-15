@@ -307,6 +307,134 @@ export class ZohoBigin implements INodeType {
 			);
 
 			return response.data || [];
+
+		} else if (operation === 'bulkCreatePipelines') {
+			const pipelinesDataRaw = context.getNodeParameter('pipelinesData', itemIndex) as string;
+
+			let pipelinesData: IDataObject[] = [];
+			try {
+				pipelinesData = JSON.parse(pipelinesDataRaw);
+			} catch (error) {
+				throw new NodeOperationError(
+					context.getNode(),
+					'Pipelines data must be valid JSON array',
+				);
+			}
+
+			if (!Array.isArray(pipelinesData)) {
+				throw new NodeOperationError(
+					context.getNode(),
+					'Pipelines data must be an array',
+				);
+			}
+
+			if (pipelinesData.length === 0) {
+				throw new NodeOperationError(
+					context.getNode(),
+					'Pipelines data array cannot be empty',
+				);
+			}
+
+			// Bigin allows up to 100 records per request
+			const batchSize = 100;
+			const results: IDataObject[] = [];
+
+			for (let i = 0; i < pipelinesData.length; i += batchSize) {
+				const batch = pipelinesData.slice(i, i + batchSize);
+
+				const body = {
+					data: batch,
+				};
+
+				const response = await zohoBiginApiRequest.call(
+					context,
+					'POST',
+					'/Pipelines',
+					body,
+					{},
+				);
+
+				// Collect all results
+				if (response.data) {
+					results.push(...response.data);
+				}
+
+				// Rate limiting: wait between batches
+				if (i + batchSize < pipelinesData.length) {
+					await new Promise(resolve => setTimeout(resolve, 1000));
+				}
+			}
+
+			return results;
+
+		} else if (operation === 'bulkUpdatePipelines') {
+			const pipelinesDataRaw = context.getNodeParameter('pipelinesData', itemIndex) as string;
+
+			let pipelinesData: IDataObject[] = [];
+			try {
+				pipelinesData = JSON.parse(pipelinesDataRaw);
+			} catch (error) {
+				throw new NodeOperationError(
+					context.getNode(),
+					'Pipelines data must be valid JSON array',
+				);
+			}
+
+			if (!Array.isArray(pipelinesData)) {
+				throw new NodeOperationError(
+					context.getNode(),
+					'Pipelines data must be an array',
+				);
+			}
+
+			if (pipelinesData.length === 0) {
+				throw new NodeOperationError(
+					context.getNode(),
+					'Pipelines data array cannot be empty',
+				);
+			}
+
+			// Validate that each pipeline has an ID
+			pipelinesData.forEach((pipeline, index) => {
+				if (!pipeline.id) {
+					throw new NodeOperationError(
+						context.getNode(),
+						`Pipeline at index ${index} is missing required 'id' field`,
+					);
+				}
+			});
+
+			// Bigin allows up to 100 records per request
+			const batchSize = 100;
+			const results: IDataObject[] = [];
+
+			for (let i = 0; i < pipelinesData.length; i += batchSize) {
+				const batch = pipelinesData.slice(i, i + batchSize);
+
+				const body = {
+					data: batch,
+				};
+
+				const response = await zohoBiginApiRequest.call(
+					context,
+					'PUT',
+					'/Pipelines',
+					body,
+					{},
+				);
+
+				// Collect all results
+				if (response.data) {
+					results.push(...response.data);
+				}
+
+				// Rate limiting: wait between batches
+				if (i + batchSize < pipelinesData.length) {
+					await new Promise(resolve => setTimeout(resolve, 1000));
+				}
+			}
+
+			return results;
 		}
 
 		throw new NodeOperationError(
@@ -433,6 +561,134 @@ export class ZohoBigin implements INodeType {
 			);
 
 			return response.data || [];
+
+		} else if (operation === 'bulkCreateContacts') {
+			const contactsDataRaw = context.getNodeParameter('contactsData', itemIndex) as string;
+
+			let contactsData: IDataObject[] = [];
+			try {
+				contactsData = JSON.parse(contactsDataRaw);
+			} catch (error) {
+				throw new NodeOperationError(
+					context.getNode(),
+					'Contacts data must be valid JSON array',
+				);
+			}
+
+			if (!Array.isArray(contactsData)) {
+				throw new NodeOperationError(
+					context.getNode(),
+					'Contacts data must be an array',
+				);
+			}
+
+			if (contactsData.length === 0) {
+				throw new NodeOperationError(
+					context.getNode(),
+					'Contacts data array cannot be empty',
+				);
+			}
+
+			// Bigin allows up to 100 records per request
+			const batchSize = 100;
+			const results: IDataObject[] = [];
+
+			for (let i = 0; i < contactsData.length; i += batchSize) {
+				const batch = contactsData.slice(i, i + batchSize);
+
+				const body = {
+					data: batch,
+				};
+
+				const response = await zohoBiginApiRequest.call(
+					context,
+					'POST',
+					'/Contacts',
+					body,
+					{},
+				);
+
+				// Collect all results (both success and failure details)
+				if (response.data) {
+					results.push(...response.data);
+				}
+
+				// Rate limiting: wait between batches to avoid API limits
+				if (i + batchSize < contactsData.length) {
+					await new Promise(resolve => setTimeout(resolve, 1000));
+				}
+			}
+
+			return results;
+
+		} else if (operation === 'bulkUpdateContacts') {
+			const contactsDataRaw = context.getNodeParameter('contactsData', itemIndex) as string;
+
+			let contactsData: IDataObject[] = [];
+			try {
+				contactsData = JSON.parse(contactsDataRaw);
+			} catch (error) {
+				throw new NodeOperationError(
+					context.getNode(),
+					'Contacts data must be valid JSON array',
+				);
+			}
+
+			if (!Array.isArray(contactsData)) {
+				throw new NodeOperationError(
+					context.getNode(),
+					'Contacts data must be an array',
+				);
+			}
+
+			if (contactsData.length === 0) {
+				throw new NodeOperationError(
+					context.getNode(),
+					'Contacts data array cannot be empty',
+				);
+			}
+
+			// Validate that each contact has an ID
+			contactsData.forEach((contact, index) => {
+				if (!contact.id) {
+					throw new NodeOperationError(
+						context.getNode(),
+						`Contact at index ${index} is missing required 'id' field`,
+					);
+				}
+			});
+
+			// Bigin allows up to 100 records per request
+			const batchSize = 100;
+			const results: IDataObject[] = [];
+
+			for (let i = 0; i < contactsData.length; i += batchSize) {
+				const batch = contactsData.slice(i, i + batchSize);
+
+				const body = {
+					data: batch,
+				};
+
+				const response = await zohoBiginApiRequest.call(
+					context,
+					'PUT',
+					'/Contacts',
+					body,
+					{},
+				);
+
+				// Collect all results
+				if (response.data) {
+					results.push(...response.data);
+				}
+
+				// Rate limiting: wait between batches
+				if (i + batchSize < contactsData.length) {
+					await new Promise(resolve => setTimeout(resolve, 1000));
+				}
+			}
+
+			return results;
 		}
 
 		throw new NodeOperationError(
@@ -559,6 +815,134 @@ export class ZohoBigin implements INodeType {
 			);
 
 			return response.data || [];
+
+		} else if (operation === 'bulkCreateAccounts') {
+			const accountsDataRaw = context.getNodeParameter('accountsData', itemIndex) as string;
+
+			let accountsData: IDataObject[] = [];
+			try {
+				accountsData = JSON.parse(accountsDataRaw);
+			} catch (error) {
+				throw new NodeOperationError(
+					context.getNode(),
+					'Accounts data must be valid JSON array',
+				);
+			}
+
+			if (!Array.isArray(accountsData)) {
+				throw new NodeOperationError(
+					context.getNode(),
+					'Accounts data must be an array',
+				);
+			}
+
+			if (accountsData.length === 0) {
+				throw new NodeOperationError(
+					context.getNode(),
+					'Accounts data array cannot be empty',
+				);
+			}
+
+			// Bigin allows up to 100 records per request
+			const batchSize = 100;
+			const results: IDataObject[] = [];
+
+			for (let i = 0; i < accountsData.length; i += batchSize) {
+				const batch = accountsData.slice(i, i + batchSize);
+
+				const body = {
+					data: batch,
+				};
+
+				const response = await zohoBiginApiRequest.call(
+					context,
+					'POST',
+					'/Accounts',
+					body,
+					{},
+				);
+
+				// Collect all results
+				if (response.data) {
+					results.push(...response.data);
+				}
+
+				// Rate limiting: wait between batches
+				if (i + batchSize < accountsData.length) {
+					await new Promise(resolve => setTimeout(resolve, 1000));
+				}
+			}
+
+			return results;
+
+		} else if (operation === 'bulkUpdateAccounts') {
+			const accountsDataRaw = context.getNodeParameter('accountsData', itemIndex) as string;
+
+			let accountsData: IDataObject[] = [];
+			try {
+				accountsData = JSON.parse(accountsDataRaw);
+			} catch (error) {
+				throw new NodeOperationError(
+					context.getNode(),
+					'Accounts data must be valid JSON array',
+				);
+			}
+
+			if (!Array.isArray(accountsData)) {
+				throw new NodeOperationError(
+					context.getNode(),
+					'Accounts data must be an array',
+				);
+			}
+
+			if (accountsData.length === 0) {
+				throw new NodeOperationError(
+					context.getNode(),
+					'Accounts data array cannot be empty',
+				);
+			}
+
+			// Validate that each account has an ID
+			accountsData.forEach((account, index) => {
+				if (!account.id) {
+					throw new NodeOperationError(
+						context.getNode(),
+						`Account at index ${index} is missing required 'id' field`,
+					);
+				}
+			});
+
+			// Bigin allows up to 100 records per request
+			const batchSize = 100;
+			const results: IDataObject[] = [];
+
+			for (let i = 0; i < accountsData.length; i += batchSize) {
+				const batch = accountsData.slice(i, i + batchSize);
+
+				const body = {
+					data: batch,
+				};
+
+				const response = await zohoBiginApiRequest.call(
+					context,
+					'PUT',
+					'/Accounts',
+					body,
+					{},
+				);
+
+				// Collect all results
+				if (response.data) {
+					results.push(...response.data);
+				}
+
+				// Rate limiting: wait between batches
+				if (i + batchSize < accountsData.length) {
+					await new Promise(resolve => setTimeout(resolve, 1000));
+				}
+			}
+
+			return results;
 		}
 
 		throw new NodeOperationError(
@@ -685,6 +1069,134 @@ export class ZohoBigin implements INodeType {
 			);
 
 			return response.data || [];
+
+		} else if (operation === 'bulkCreateProducts') {
+			const productsDataRaw = context.getNodeParameter('productsData', itemIndex) as string;
+
+			let productsData: IDataObject[] = [];
+			try {
+				productsData = JSON.parse(productsDataRaw);
+			} catch (error) {
+				throw new NodeOperationError(
+					context.getNode(),
+					'Products data must be valid JSON array',
+				);
+			}
+
+			if (!Array.isArray(productsData)) {
+				throw new NodeOperationError(
+					context.getNode(),
+					'Products data must be an array',
+				);
+			}
+
+			if (productsData.length === 0) {
+				throw new NodeOperationError(
+					context.getNode(),
+					'Products data array cannot be empty',
+				);
+			}
+
+			// Bigin allows up to 100 records per request
+			const batchSize = 100;
+			const results: IDataObject[] = [];
+
+			for (let i = 0; i < productsData.length; i += batchSize) {
+				const batch = productsData.slice(i, i + batchSize);
+
+				const body = {
+					data: batch,
+				};
+
+				const response = await zohoBiginApiRequest.call(
+					context,
+					'POST',
+					'/Products',
+					body,
+					{},
+				);
+
+				// Collect all results
+				if (response.data) {
+					results.push(...response.data);
+				}
+
+				// Rate limiting: wait between batches
+				if (i + batchSize < productsData.length) {
+					await new Promise(resolve => setTimeout(resolve, 1000));
+				}
+			}
+
+			return results;
+
+		} else if (operation === 'bulkUpdateProducts') {
+			const productsDataRaw = context.getNodeParameter('productsData', itemIndex) as string;
+
+			let productsData: IDataObject[] = [];
+			try {
+				productsData = JSON.parse(productsDataRaw);
+			} catch (error) {
+				throw new NodeOperationError(
+					context.getNode(),
+					'Products data must be valid JSON array',
+				);
+			}
+
+			if (!Array.isArray(productsData)) {
+				throw new NodeOperationError(
+					context.getNode(),
+					'Products data must be an array',
+				);
+			}
+
+			if (productsData.length === 0) {
+				throw new NodeOperationError(
+					context.getNode(),
+					'Products data array cannot be empty',
+				);
+			}
+
+			// Validate that each product has an ID
+			productsData.forEach((product, index) => {
+				if (!product.id) {
+					throw new NodeOperationError(
+						context.getNode(),
+						`Product at index ${index} is missing required 'id' field`,
+					);
+				}
+			});
+
+			// Bigin allows up to 100 records per request
+			const batchSize = 100;
+			const results: IDataObject[] = [];
+
+			for (let i = 0; i < productsData.length; i += batchSize) {
+				const batch = productsData.slice(i, i + batchSize);
+
+				const body = {
+					data: batch,
+				};
+
+				const response = await zohoBiginApiRequest.call(
+					context,
+					'PUT',
+					'/Products',
+					body,
+					{},
+				);
+
+				// Collect all results
+				if (response.data) {
+					results.push(...response.data);
+				}
+
+				// Rate limiting: wait between batches
+				if (i + batchSize < productsData.length) {
+					await new Promise(resolve => setTimeout(resolve, 1000));
+				}
+			}
+
+			return results;
 		}
 
 		throw new NodeOperationError(

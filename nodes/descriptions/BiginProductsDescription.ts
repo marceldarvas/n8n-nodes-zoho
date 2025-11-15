@@ -16,6 +16,8 @@ export const productsOperations: INodeProperties[] = [
 			{ name: 'Create', value: 'createProduct', description: 'Create a product' },
 			{ name: 'Update', value: 'updateProduct', description: 'Update a product' },
 			{ name: 'Delete', value: 'deleteProduct', description: 'Delete a product' },
+			{ name: 'Bulk Create', value: 'bulkCreateProducts', description: 'Create multiple products' },
+			{ name: 'Bulk Update', value: 'bulkUpdateProducts', description: 'Update multiple products' },
 		],
 		default: 'listProducts',
 	},
@@ -200,5 +202,22 @@ export const productsFields: INodeProperties[] = [
 				],
 			},
 		],
+	},
+
+	// Bulk operations - Products Data (JSON)
+	{
+		displayName: 'Products Data',
+		name: 'productsData',
+		type: 'json',
+		default: '[]',
+		required: true,
+		displayOptions: {
+			show: {
+				resource: ['product'],
+				operation: ['bulkCreateProducts', 'bulkUpdateProducts'],
+			},
+		},
+		description: 'Array of product objects (max 100)',
+		placeholder: '[{"Product_Name": "Product 1", "Unit_Price": 99.99}, {"Product_Name": "Product 2", "Unit_Price": 149.99}]',
 	},
 ];
