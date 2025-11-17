@@ -535,6 +535,17 @@ export class ZohoBigin implements INodeType {
 			}
 
 			return results;
+
+		} else if (operation === 'getFields') {
+			const response = await zohoBiginApiRequest.call(
+				context,
+				'GET',
+				'/settings/fields?module=Pipelines',
+				{},
+				{},
+			);
+
+			return response.fields || [];
 		}
 
 		throw new NodeOperationError(
@@ -818,6 +829,17 @@ export class ZohoBigin implements INodeType {
 			}
 
 			return results;
+
+		} else if (operation === 'getFields') {
+			const response = await zohoBiginApiRequest.call(
+				context,
+				'GET',
+				'/settings/fields?module=Contacts',
+				{},
+				{},
+			);
+
+			return response.fields || [];
 		}
 
 		throw new NodeOperationError(
@@ -1101,6 +1123,17 @@ export class ZohoBigin implements INodeType {
 			}
 
 			return results;
+
+		} else if (operation === 'getFields') {
+			const response = await zohoBiginApiRequest.call(
+				context,
+				'GET',
+				'/settings/fields?module=Accounts',
+				{},
+				{},
+			);
+
+			return response.fields || [];
 		}
 
 		throw new NodeOperationError(
@@ -1366,6 +1399,17 @@ export class ZohoBigin implements INodeType {
 			}
 
 			return results;
+
+		} else if (operation === 'getFields') {
+			const response = await zohoBiginApiRequest.call(
+				context,
+				'GET',
+				'/settings/fields?module=Products',
+				{},
+				{},
+			);
+
+			return response.fields || [];
 		}
 
 		throw new NodeOperationError(

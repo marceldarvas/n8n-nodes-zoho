@@ -824,6 +824,131 @@ Behind the scenes, filters are converted to Zoho's criteria format:
 
 ---
 
+## Field Metadata Retrieval
+
+The Zoho Bigin node provides a "Get Fields" operation to retrieve field metadata for each module. This feature is useful for discovering available fields, understanding field types, and building dynamic integrations.
+
+### What is Field Metadata?
+
+Field metadata includes detailed information about each field in a module:
+- **Field Name**: The API name of the field (e.g., `First_Name`, `Email`)
+- **Display Label**: The user-friendly name shown in the UI
+- **Data Type**: String, Number, Date, Boolean, Picklist, etc.
+- **Required**: Whether the field is mandatory
+- **Read-Only**: Whether the field can be modified
+- **Length**: Maximum length for text fields
+- **Custom Field**: Whether it's a standard or custom field
+- **Picklist Values**: Available options for dropdown fields
+
+### Available Modules
+
+Field metadata can be retrieved for all major modules:
+- **Contacts** - Get all contact fields
+- **Pipelines** - Get all pipeline/deal fields
+- **Accounts** - Get all account/company fields
+- **Products** - Get all product fields
+
+### How to Use
+
+1. Select the resource (e.g., Contact, Pipeline, Account, Product)
+2. Choose the "Get Fields" operation
+3. Execute the node
+
+The response will contain an array of field objects with complete metadata.
+
+### Example Response
+
+```json
+{
+  "fields": [
+    {
+      "api_name": "First_Name",
+      "field_label": "First Name",
+      "data_type": "text",
+      "max_length": 40,
+      "required": false,
+      "read_only": false,
+      "custom_field": false
+    },
+    {
+      "api_name": "Email",
+      "field_label": "Email",
+      "data_type": "email",
+      "max_length": 100,
+      "required": false,
+      "read_only": false,
+      "custom_field": false
+    },
+    {
+      "api_name": "Stage",
+      "field_label": "Stage",
+      "data_type": "picklist",
+      "required": true,
+      "picklist_values": [
+        { "display_value": "Qualification", "actual_value": "Qualification" },
+        { "display_value": "Needs Analysis", "actual_value": "Needs Analysis" },
+        { "display_value": "Proposal", "actual_value": "Proposal" }
+      ],
+      "custom_field": false
+    },
+    {
+      "api_name": "cf_custom_score",
+      "field_label": "Custom Score",
+      "data_type": "number",
+      "required": false,
+      "custom_field": true
+    }
+  ]
+}
+```
+
+### Use Cases
+
+**1. Dynamic Form Generation**
+Use field metadata to build forms dynamically based on available fields.
+
+**2. Field Validation**
+Check field requirements and data types before sending data to the API.
+
+**3. Custom Field Discovery**
+Identify custom fields that have been added to your Bigin account.
+
+**4. Integration Configuration**
+Build flexible integrations that adapt to your Bigin field configuration.
+
+**5. Data Mapping**
+Create field mapping interfaces that show available fields and their types.
+
+### Filtering Field Metadata
+
+Once you retrieve the fields, you can filter them using n8n's built-in functions:
+
+**Get Required Fields Only:**
+```javascript
+// In an n8n Function node
+return items[0].json.fields.filter(field => field.required);
+```
+
+**Get Custom Fields Only:**
+```javascript
+return items[0].json.fields.filter(field => field.custom_field);
+```
+
+**Get Picklist Fields:**
+```javascript
+return items[0].json.fields.filter(field => field.data_type === 'picklist');
+```
+
+### Best Practices
+
+1. **Cache Metadata**: Field metadata rarely changes, so cache the results to avoid repeated API calls
+2. **Check Custom Fields**: Use this to discover custom fields specific to your Bigin account
+3. **Validate Before Create**: Check required fields before creating records
+4. **Build Dynamic UIs**: Use metadata to build forms that adapt to field configuration changes
+5. **Document Integrations**: Use field metadata to document available fields in your workflows
+
+---
+
 ## Troubleshooting
 
 ### Issue: "Invalid Token" Error
@@ -871,6 +996,6 @@ Behind the scenes, filters are converted to Zoho's criteria format:
 ---
 
 **Last Updated**: 2025-11-15
-**Node Version**: 1.2 (Phase 6 - Advanced Features: Bulk Operations + Advanced Filtering)
+**Node Version**: 1.3 (Phase 6 - Advanced Features: Bulk Operations + Advanced Filtering + Field Metadata)
 **API Version**: v2
 **Status**: Production Ready

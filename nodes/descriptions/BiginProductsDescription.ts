@@ -16,6 +16,7 @@ export const productsOperations: INodeProperties[] = [
 			{ name: 'Create', value: 'createProduct', description: 'Create a product' },
 			{ name: 'Update', value: 'updateProduct', description: 'Update a product' },
 			{ name: 'Delete', value: 'deleteProduct', description: 'Delete a product' },
+			{ name: 'Get Fields', value: 'getFields', description: 'Get metadata for product fields' },
 			{ name: 'Bulk Create', value: 'bulkCreateProducts', description: 'Create multiple products' },
 			{ name: 'Bulk Update', value: 'bulkUpdateProducts', description: 'Update multiple products' },
 		],

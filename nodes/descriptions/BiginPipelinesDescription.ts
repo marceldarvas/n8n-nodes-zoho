@@ -17,6 +17,7 @@ export const pipelinesOperations: INodeProperties[] = [
 			{ name: 'Update', value: 'updatePipeline', description: 'Update a pipeline record' },
 			{ name: 'Delete', value: 'deletePipeline', description: 'Delete a pipeline record' },
 			{ name: 'Search', value: 'searchPipelines', description: 'Search pipeline records' },
+			{ name: 'Get Fields', value: 'getFields', description: 'Get metadata for pipeline fields' },
 			{ name: 'Bulk Create', value: 'bulkCreatePipelines', description: 'Create multiple pipeline records' },
 			{ name: 'Bulk Update', value: 'bulkUpdatePipelines', description: 'Update multiple pipeline records' },
 		],

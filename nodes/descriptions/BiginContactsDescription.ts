@@ -17,6 +17,7 @@ export const contactsOperations: INodeProperties[] = [
 			{ name: 'Update', value: 'updateContact', description: 'Update a contact' },
 			{ name: 'Delete', value: 'deleteContact', description: 'Delete a contact' },
 			{ name: 'Search', value: 'searchContacts', description: 'Search contacts' },
+			{ name: 'Get Fields', value: 'getFields', description: 'Get metadata for contact fields' },
 			{ name: 'Bulk Create', value: 'bulkCreateContacts', description: 'Create multiple contacts' },
 			{ name: 'Bulk Update', value: 'bulkUpdateContacts', description: 'Update multiple contacts' },
 		],

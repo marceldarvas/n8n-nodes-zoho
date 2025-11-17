@@ -17,6 +17,7 @@ export const accountsOperations: INodeProperties[] = [
 			{ name: 'Update', value: 'updateAccount', description: 'Update a company/account' },
 			{ name: 'Delete', value: 'deleteAccount', description: 'Delete a company/account' },
 			{ name: 'Search', value: 'searchAccounts', description: 'Search companies/accounts' },
+			{ name: 'Get Fields', value: 'getFields', description: 'Get metadata for account fields' },
 			{ name: 'Bulk Create', value: 'bulkCreateAccounts', description: 'Create multiple companies/accounts' },
 			{ name: 'Bulk Update', value: 'bulkUpdateAccounts', description: 'Update multiple companies/accounts' },
 		],
