@@ -721,7 +721,7 @@ For Phase 6 (select features to implement):
 
 **Previous Phase**: [Phase 5: Testing & Documentation](./phase-5-testing.md)
 
-**Next Phase**: [Phase 7: Related Lists API](./phase-7-related-lists.md)
+**Next Phase**: [Phase 7: Secondary APIs & Advanced Operations](./phase-7-secondary-apis.md)
 
 **Related Modules**: All modules benefit from these features
 
