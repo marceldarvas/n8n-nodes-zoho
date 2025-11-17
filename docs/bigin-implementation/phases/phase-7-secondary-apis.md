@@ -801,17 +801,53 @@ Consider for later phases:
 
 ## 🎓 Learning Resources
 
+### API Overview & Getting Started
+- [Bigin API v2 Overview](https://www.bigin.com/developer/docs/apis/v2/) - Main API documentation hub
+- [OAuth 2.0 Overview](https://www.bigin.com/developer/docs/apis/v2/oauth-overview.html) - Authentication mechanism
+- [Get Started with Bigin APIs in Postman](https://www.bigin.com/developer/docs/apis/v2/bigin-apis-postman.html) - Quick start guide
+- [What's New in Bigin API V2](https://www.bigin.com/developer/docs/apis/v2/whats-new.html) - Latest updates and changes
+- [API Changelog](https://www.bigin.com/developer/docs/apis/v2/api-changelog.html) - Version history
+
 ### Related Lists APIs
-- [Related List Metadata API](https://www.bigin.com/developer/docs/apis/v2/related-list-meta.html)
-- [Get Related Records API](https://www.bigin.com/developer/docs/apis/v2/get-related-records.html)
+- [Related List Metadata API](https://www.bigin.com/developer/docs/apis/v2/related-list-meta.html) - Get available related lists for a module
+- [Get Related Records API](https://www.bigin.com/developer/docs/apis/v2/get-related-records.html) - Retrieve related records
+- [Update Related Records API](https://www.bigin.com/developer/docs/apis/v2/update-related-records.html) - Update up to 100 related records per call
+- [Delink Related Records API](https://www.bigin.com/developer/docs/apis/delink.html) - Remove associations (up to 100 per call)
+
+### Send Email API
+- [Send Mail API](https://www.bigin.com/developer/docs/apis/v2/send-mail.html) - Send emails from Bigin to record-associated addresses
+- [Get Configured From-Addresses API](https://www.bigin.com/developer/docs/apis/v2/get-from-addresses.html) - Get available sender addresses
 
 ### Files & Attachments APIs
-- [Upload Files API](https://www.bigin.com/developer/docs/apis/v2/upload-files.html)
-- [Get Files API](https://www.bigin.com/developer/docs/apis/v2/get-files.html)
-- [Get Attachments API](https://www.bigin.com/developer/docs/apis/v2/get-attachments.html)
+- [Upload Files API](https://www.bigin.com/developer/docs/apis/v2/upload-files.html) - Upload files to records (documents, images, videos)
+- [Get Files API](https://www.bigin.com/developer/docs/apis/v2/get-files.html) - Download files using encrypted file ID
+- [Get Attachments API](https://www.bigin.com/developer/docs/apis/v2/get-attachments.html) - List attachments for a record
+- [Upload Attachment API](https://www.bigin.com/developer/docs/apis/v2/upload-attachment.html) - Add attachments to records
+- [Download Attachment API](https://www.bigin.com/developer/docs/apis/download-attachments.html) - Download attachment by ID (v1)
+- [Delete Attachments API](https://www.bigin.com/developer/docs/apis/delete-attachments.html) - Remove attachments (v1)
+
+### Photos API
+- [Upload Profile Photo API](https://www.bigin.com/developer/docs/apis/v2/upload-image.html) - Add profile photos (max 10MB, 10MP)
+- [Download Profile Photo API](https://www.bigin.com/developer/docs/apis/v2/download-image.html) - Download record photos
+- [Delete Profile Photo API](https://www.bigin.com/developer/docs/apis/v2/delete-image.html) - Remove profile photos
+- [Upload Organization Photo API](https://www.bigin.com/developer/docs/apis/v2/upload-org-img.html) - Organization branding (max 1MB)
+
+### Change Owner API
+- [Change Record Owner API](https://www.bigin.com/developer/docs/apis/v2/change-record-owner.html) - Transfer ownership (up to 500 records per call)
+
+### Additional References
+- [API Methods (JavaScript SDK)](https://www.bigin.com/developer/docs/sdks/api-js-sdk.html) - SDK for browser-based integrations
+- [Get Modules API](https://www.bigin.com/developer/docs/apis/v2/modules-api.html) - Module metadata and configuration
+- [Field Meta Data API](https://www.bigin.com/developer/docs/apis/v2/field-meta.html) - Field definitions for modules
 
 ### n8n Resources
-- [n8n Binary Data Handling](https://docs.n8n.io/code-examples/methods-and-variables/binary-data/)
+- [n8n Binary Data Handling](https://docs.n8n.io/code-examples/methods-and-variables/binary-data/) - Working with files in n8n
+
+### Important Notes
+- **API Versioning**: Some endpoints (Delete Attachments, Download Attachments, Delink) may still use v1 endpoints. Check documentation for latest versions.
+- **Rate Limits**: Maximum batch sizes vary by operation (100 for related records, 500 for ownership transfers)
+- **File Sizes**: Photos limited to 10MB/10MP, organization photos to 1MB
+- **Authentication**: All endpoints require OAuth 2.0 access tokens with appropriate scopes
 
 ---
 
