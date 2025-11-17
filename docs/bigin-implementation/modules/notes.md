@@ -157,5 +157,15 @@ if (operation === 'createNote') {
 
 ---
 
-**API Reference**: https://www.bigin.com/developer/docs/apis/v2/notes-api.html
+## 📚 Related Resources
+
+### Bigin API v2 Documentation
+- **Get Notes API**: https://www.bigin.com/developer/docs/apis/v2/get-notes.html - Retrieve note records
+- **Insert Records API**: https://www.bigin.com/developer/docs/apis/v2/insert-records.html - Create new notes
+- **Update Records API**: https://www.bigin.com/developer/docs/apis/v2/update-records.html - Update note data
+- **Delete Records API**: https://www.bigin.com/developer/docs/apis/v2/delete-records.html - Delete notes
+- **Field Meta Data API**: https://www.bigin.com/developer/docs/apis/v2/field-meta.html - Get field definitions
+
+---
+
 **Status**: 📝 Ready for Implementation
