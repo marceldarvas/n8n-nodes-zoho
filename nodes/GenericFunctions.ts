@@ -315,6 +315,8 @@ export async function zohoCalendarApiRequest(
  * @param endpoint - API endpoint path (e.g., '/Pipelines', '/Contacts/{id}')
  * @param body - Request body data
  * @param qs - Query string parameters
+ * @param headers - Additional headers to include in the request
+ * @param additionalOptions - Additional request options (formData, encoding, json, etc.)
  * @returns Promise resolving to the API response data
  * @throws {NodeApiError} When the API request fails
  * @see https://www.zoho.com/bigin/developer/docs/api/v1/
@@ -325,7 +327,9 @@ export async function zohoBiginApiRequest(
     endpoint: string,
     body: IDataObject = {},
     qs: IDataObject = {},
-): Promise<IDataObject> {
+    headers?: IDataObject,
+    additionalOptions?: IDataObject,
+): Promise<any> {
     const {access_token} = await getAccessTokenData.call(this);
     const credentials = await this.getCredentials('zohoApi');
     const baseUrl = getBiginBaseUrl(credentials.accessTokenUrl as string);
@@ -335,23 +339,45 @@ export async function zohoBiginApiRequest(
         url: `${baseUrl}${endpoint}`,
         headers: {
             Authorization: 'Zoho-oauthtoken ' + access_token,
-            'Content-Type': 'application/json',
+            ...(headers || {}),
         },
         json: true,
     };
+
+    // Handle file uploads with formData
+    if (additionalOptions?.formData) {
+        options.formData = additionalOptions.formData as IDataObject;
+        // Remove Content-Type header for multipart/form-data (auto-set by request library)
+        delete options.headers!['Content-Type'];
+    } else {
+        // Standard JSON content type for non-file operations
+        options.headers!['Content-Type'] = 'application/json';
+        if (Object.keys(body).length) {
+            options.body = body;
+        }
+    }
 
     if (Object.keys(qs).length) {
         options.qs = qs;
     }
 
-    if (Object.keys(body).length) {
-        options.body = body;
+    // Handle binary downloads
+    if (additionalOptions?.encoding === null) {
+        options.encoding = null;
+    }
+    if (additionalOptions?.json === false) {
+        options.json = false;
     }
 
     try {
         const responseData = await this.helpers.request!(options);
-        throwOnErrorStatus.call(this, responseData as IDataObject);
-        return responseData as IDataObject;
+
+        // Don't check error status for binary downloads
+        if (additionalOptions?.json !== false) {
+            throwOnErrorStatus.call(this, responseData as IDataObject);
+        }
+
+        return responseData;
     } catch (error) {
         const errorData = (error as any).cause?.data;
         const args = errorData

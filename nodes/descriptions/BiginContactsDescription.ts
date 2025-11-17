@@ -20,6 +20,18 @@ export const contactsOperations: INodeProperties[] = [
 			{ name: 'Get Fields', value: 'getFields', description: 'Get metadata for contact fields' },
 			{ name: 'Bulk Create', value: 'bulkCreateContacts', description: 'Create multiple contacts' },
 			{ name: 'Bulk Update', value: 'bulkUpdateContacts', description: 'Update multiple contacts' },
+			{ name: 'Get Related Records', value: 'getRelatedRecords', description: 'Get records related to a contact' },
+			{ name: 'Update Related Records', value: 'updateRelatedRecords', description: 'Update related records' },
+			{ name: 'Delink Related Record', value: 'delinkRelatedRecord', description: 'Remove association with a related record' },
+			{ name: 'Send Email', value: 'sendEmail', description: 'Send an email from Bigin' },
+			{ name: 'List Attachments', value: 'listAttachments', description: 'List all attachments for a contact' },
+			{ name: 'Upload Attachment', value: 'uploadAttachment', description: 'Upload an attachment to a contact' },
+			{ name: 'Download Attachment', value: 'downloadAttachment', description: 'Download an attachment' },
+			{ name: 'Delete Attachment', value: 'deleteAttachment', description: 'Delete an attachment' },
+			{ name: 'Upload Photo', value: 'uploadPhoto', description: 'Upload a profile photo' },
+			{ name: 'Download Photo', value: 'downloadPhoto', description: 'Download profile photo' },
+			{ name: 'Delete Photo', value: 'deletePhoto', description: 'Delete profile photo' },
+			{ name: 'Change Owner', value: 'changeOwner', description: 'Transfer record ownership' },
 		],
 		default: 'listContacts',
 	},
@@ -291,5 +303,316 @@ export const contactsFields: INodeProperties[] = [
 		},
 		description: 'Array of contact objects (max 100)',
 		placeholder: '[{"Last_Name": "Doe", "Email": "john@example.com"}, {"Last_Name": "Smith", "Email": "jane@example.com"}]',
+	},
+
+	// ========================================
+	// Related Lists Operations
+	// ========================================
+	{
+		displayName: 'Contact ID',
+		name: 'recordId',
+		type: 'string',
+		required: true,
+		displayOptions: {
+			show: {
+				resource: ['contact'],
+				operation: ['getRelatedRecords', 'updateRelatedRecords', 'delinkRelatedRecord', 'sendEmail', 'listAttachments', 'uploadAttachment', 'uploadPhoto', 'downloadPhoto', 'deletePhoto'],
+			},
+		},
+		default: '',
+		description: 'ID of the contact record',
+	},
+	{
+		displayName: 'Related Module',
+		name: 'relatedModule',
+		type: 'options',
+		required: true,
+		displayOptions: {
+			show: {
+				resource: ['contact'],
+				operation: ['getRelatedRecords', 'updateRelatedRecords', 'delinkRelatedRecord'],
+			},
+		},
+		options: [
+			{ name: 'Pipelines', value: 'Pipelines', description: 'Pipeline (deal) records' },
+			{ name: 'Tasks', value: 'Tasks', description: 'Task records' },
+			{ name: 'Events', value: 'Events', description: 'Event records' },
+			{ name: 'Notes', value: 'Notes', description: 'Note records' },
+			{ name: 'Attachments', value: 'Attachments', description: 'Attachment records' },
+			{ name: 'Emails', value: 'Emails', description: 'Email records' },
+			{ name: 'Calls', value: 'Calls', description: 'Call records' },
+			{ name: 'Activities', value: 'Activities', description: 'All activities' },
+		],
+		default: 'Pipelines',
+		description: 'The related module to retrieve records from',
+	},
+	{
+		displayName: 'Return All',
+		name: 'returnAll',
+		type: 'boolean',
+		displayOptions: {
+			show: {
+				resource: ['contact'],
+				operation: ['getRelatedRecords'],
+			},
+		},
+		default: false,
+		description: 'Whether to return all results or only up to a given limit',
+	},
+	{
+		displayName: 'Limit',
+		name: 'limit',
+		type: 'number',
+		displayOptions: {
+			show: {
+				resource: ['contact'],
+				operation: ['getRelatedRecords'],
+				returnAll: [false],
+			},
+		},
+		typeOptions: {
+			minValue: 1,
+			maxValue: 200,
+		},
+		default: 50,
+		description: 'Max number of results to return',
+	},
+	{
+		displayName: 'Related Record ID',
+		name: 'relatedRecordId',
+		type: 'string',
+		required: true,
+		displayOptions: {
+			show: {
+				resource: ['contact'],
+				operation: ['delinkRelatedRecord'],
+			},
+		},
+		default: '',
+		description: 'ID of the related record to delink',
+	},
+	{
+		displayName: 'Related Records Data',
+		name: 'relatedRecordsData',
+		type: 'json',
+		required: true,
+		displayOptions: {
+			show: {
+				resource: ['contact'],
+				operation: ['updateRelatedRecords'],
+			},
+		},
+		default: '[]',
+		description: 'Array of related record objects to update (max 100)',
+		placeholder: '[{"id": "4150868000001234567", "Deal_Name": "Updated Deal"}]',
+	},
+
+	// ========================================
+	// Send Email Operation
+	// ========================================
+	{
+		displayName: 'From Email',
+		name: 'fromEmail',
+		type: 'string',
+		required: true,
+		displayOptions: {
+			show: {
+				resource: ['contact'],
+				operation: ['sendEmail'],
+			},
+		},
+		default: '',
+		placeholder: 'john@company.com',
+		description: 'Sender email address',
+	},
+	{
+		displayName: 'From Name',
+		name: 'fromName',
+		type: 'string',
+		required: true,
+		displayOptions: {
+			show: {
+				resource: ['contact'],
+				operation: ['sendEmail'],
+			},
+		},
+		default: '',
+		placeholder: 'John Doe',
+		description: 'Sender name',
+	},
+	{
+		displayName: 'To Emails',
+		name: 'toEmails',
+		type: 'string',
+		required: true,
+		displayOptions: {
+			show: {
+				resource: ['contact'],
+				operation: ['sendEmail'],
+			},
+		},
+		default: '',
+		placeholder: 'jane@client.com, bob@client.com',
+		description: 'Recipient email addresses (comma-separated)',
+	},
+	{
+		displayName: 'Subject',
+		name: 'subject',
+		type: 'string',
+		required: true,
+		displayOptions: {
+			show: {
+				resource: ['contact'],
+				operation: ['sendEmail'],
+			},
+		},
+		default: '',
+		description: 'Email subject line',
+	},
+	{
+		displayName: 'Content',
+		name: 'content',
+		type: 'string',
+		typeOptions: {
+			rows: 10,
+		},
+		required: true,
+		displayOptions: {
+			show: {
+				resource: ['contact'],
+				operation: ['sendEmail'],
+			},
+		},
+		default: '',
+		description: 'Email body content (HTML or plain text)',
+	},
+	{
+		displayName: 'Additional Options',
+		name: 'emailOptions',
+		type: 'collection',
+		placeholder: 'Add Option',
+		default: {},
+		displayOptions: {
+			show: {
+				resource: ['contact'],
+				operation: ['sendEmail'],
+			},
+		},
+		options: [
+			{
+				displayName: 'Mail Format',
+				name: 'mail_format',
+				type: 'options',
+				options: [
+					{ name: 'HTML', value: 'html' },
+					{ name: 'Plain Text', value: 'text' },
+				],
+				default: 'html',
+				description: 'Email format',
+			},
+			{
+				displayName: 'CC Emails',
+				name: 'cc',
+				type: 'string',
+				default: '',
+				placeholder: 'cc1@example.com, cc2@example.com',
+				description: 'CC recipient email addresses (comma-separated)',
+			},
+			{
+				displayName: 'BCC Emails',
+				name: 'bcc',
+				type: 'string',
+				default: '',
+				placeholder: 'bcc1@example.com, bcc2@example.com',
+				description: 'BCC recipient email addresses (comma-separated)',
+			},
+			{
+				displayName: 'Use Organization Email',
+				name: 'org_email',
+				type: 'boolean',
+				default: false,
+				description: 'Whether to use organization email address',
+			},
+		],
+	},
+
+	// ========================================
+	// Attachments Operations
+	// ========================================
+	{
+		displayName: 'Attachment ID',
+		name: 'attachmentId',
+		type: 'string',
+		required: true,
+		displayOptions: {
+			show: {
+				resource: ['contact'],
+				operation: ['downloadAttachment', 'deleteAttachment'],
+			},
+		},
+		default: '',
+		description: 'ID of the attachment',
+	},
+	{
+		displayName: 'Input Binary Field',
+		name: 'binaryPropertyName',
+		type: 'string',
+		required: true,
+		default: 'data',
+		displayOptions: {
+			show: {
+				resource: ['contact'],
+				operation: ['uploadAttachment', 'uploadPhoto'],
+			},
+		},
+		description: 'Name of the binary property containing the file to upload',
+	},
+	{
+		displayName: 'Put Output in Field',
+		name: 'binaryProperty',
+		type: 'string',
+		required: true,
+		default: 'data',
+		displayOptions: {
+			show: {
+				resource: ['contact'],
+				operation: ['downloadAttachment', 'downloadPhoto'],
+			},
+		},
+		description: 'Name of the binary property to store downloaded file',
+	},
+
+	// ========================================
+	// Change Owner Operation
+	// ========================================
+	{
+		displayName: 'New Owner ID',
+		name: 'newOwnerId',
+		type: 'string',
+		required: true,
+		displayOptions: {
+			show: {
+				resource: ['contact'],
+				operation: ['changeOwner'],
+			},
+		},
+		default: '',
+		description: 'User ID of the new owner',
+		placeholder: '4876876000000225001',
+	},
+	{
+		displayName: 'Record IDs',
+		name: 'recordIds',
+		type: 'string',
+		required: true,
+		displayOptions: {
+			show: {
+				resource: ['contact'],
+				operation: ['changeOwner'],
+			},
+		},
+		default: '',
+		description: 'IDs of records to transfer (comma-separated for bulk, max 500)',
+		placeholder: '4876876000000624001, 4876876000000624002',
 	},
 ];
