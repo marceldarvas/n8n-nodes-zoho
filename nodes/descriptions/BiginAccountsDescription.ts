@@ -17,6 +17,9 @@ export const accountsOperations: INodeProperties[] = [
 			{ name: 'Update', value: 'updateAccount', description: 'Update a company/account' },
 			{ name: 'Delete', value: 'deleteAccount', description: 'Delete a company/account' },
 			{ name: 'Search', value: 'searchAccounts', description: 'Search companies/accounts' },
+			{ name: 'Get Fields', value: 'getFields', description: 'Get metadata for account fields' },
+			{ name: 'Bulk Create', value: 'bulkCreateAccounts', description: 'Create multiple companies/accounts' },
+			{ name: 'Bulk Update', value: 'bulkUpdateAccounts', description: 'Update multiple companies/accounts' },
 		],
 		default: 'listAccounts',
 	},
@@ -303,8 +306,17 @@ export const accountsFields: INodeProperties[] = [
 						type: 'options',
 						options: [
 							{ name: 'Equals', value: 'equals' },
+							{ name: 'Not Equals', value: 'not_equals' },
 							{ name: 'Contains', value: 'contains' },
+							{ name: 'Does Not Contain', value: 'not_contains' },
 							{ name: 'Starts With', value: 'starts_with' },
+							{ name: 'Ends With', value: 'ends_with' },
+							{ name: 'Greater Than', value: 'greater_than' },
+							{ name: 'Less Than', value: 'less_than' },
+							{ name: 'Between', value: 'between' },
+							{ name: 'In', value: 'in' },
+							{ name: 'Is Empty', value: 'is_empty' },
+							{ name: 'Is Not Empty', value: 'is_not_empty' },
 						],
 						default: 'contains',
 						description: 'Filter operator',
@@ -314,10 +326,32 @@ export const accountsFields: INodeProperties[] = [
 						name: 'value',
 						type: 'string',
 						default: '',
-						description: 'Value to filter by',
+						description: 'Value to filter by. For "between", use comma-separated values (e.g., "1000,5000"). For "in", use comma-separated values (e.g., "value1,value2,value3")',
+						displayOptions: {
+							show: {
+								operator: ['equals', 'not_equals', 'contains', 'not_contains', 'starts_with', 'ends_with', 'greater_than', 'less_than', 'between', 'in'],
+							},
+						},
 					},
 				],
 			},
 		],
+	},
+
+	// Bulk operations - Accounts Data (JSON)
+	{
+		displayName: 'Accounts Data',
+		name: 'accountsData',
+		type: 'json',
+		default: '[]',
+		required: true,
+		displayOptions: {
+			show: {
+				resource: ['account'],
+				operation: ['bulkCreateAccounts', 'bulkUpdateAccounts'],
+			},
+		},
+		description: 'Array of account objects (max 100)',
+		placeholder: '[{"Account_Name": "Company 1", "Phone": "123-456-7890"}, {"Account_Name": "Company 2", "Phone": "098-765-4321"}]',
 	},
 ];

@@ -16,6 +16,9 @@ export const productsOperations: INodeProperties[] = [
 			{ name: 'Create', value: 'createProduct', description: 'Create a product' },
 			{ name: 'Update', value: 'updateProduct', description: 'Update a product' },
 			{ name: 'Delete', value: 'deleteProduct', description: 'Delete a product' },
+			{ name: 'Get Fields', value: 'getFields', description: 'Get metadata for product fields' },
+			{ name: 'Bulk Create', value: 'bulkCreateProducts', description: 'Create multiple products' },
+			{ name: 'Bulk Update', value: 'bulkUpdateProducts', description: 'Update multiple products' },
 		],
 		default: 'listProducts',
 	},
@@ -183,9 +186,17 @@ export const productsFields: INodeProperties[] = [
 						type: 'options',
 						options: [
 							{ name: 'Equals', value: 'equals' },
+							{ name: 'Not Equals', value: 'not_equals' },
 							{ name: 'Contains', value: 'contains' },
+							{ name: 'Does Not Contain', value: 'not_contains' },
+							{ name: 'Starts With', value: 'starts_with' },
+							{ name: 'Ends With', value: 'ends_with' },
 							{ name: 'Greater Than', value: 'greater_than' },
 							{ name: 'Less Than', value: 'less_than' },
+							{ name: 'Between', value: 'between' },
+							{ name: 'In', value: 'in' },
+							{ name: 'Is Empty', value: 'is_empty' },
+							{ name: 'Is Not Empty', value: 'is_not_empty' },
 						],
 						default: 'contains',
 						description: 'Filter operator',
@@ -195,10 +206,32 @@ export const productsFields: INodeProperties[] = [
 						name: 'value',
 						type: 'string',
 						default: '',
-						description: 'Value to filter by',
+						description: 'Value to filter by. For "between", use comma-separated values (e.g., "1000,5000"). For "in", use comma-separated values (e.g., "value1,value2,value3")',
+						displayOptions: {
+							show: {
+								operator: ['equals', 'not_equals', 'contains', 'not_contains', 'starts_with', 'ends_with', 'greater_than', 'less_than', 'between', 'in'],
+							},
+						},
 					},
 				],
 			},
 		],
+	},
+
+	// Bulk operations - Products Data (JSON)
+	{
+		displayName: 'Products Data',
+		name: 'productsData',
+		type: 'json',
+		default: '[]',
+		required: true,
+		displayOptions: {
+			show: {
+				resource: ['product'],
+				operation: ['bulkCreateProducts', 'bulkUpdateProducts'],
+			},
+		},
+		description: 'Array of product objects (max 100)',
+		placeholder: '[{"Product_Name": "Product 1", "Unit_Price": 99.99}, {"Product_Name": "Product 2", "Unit_Price": 149.99}]',
 	},
 ];

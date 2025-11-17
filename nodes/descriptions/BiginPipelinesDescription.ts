@@ -17,6 +17,9 @@ export const pipelinesOperations: INodeProperties[] = [
 			{ name: 'Update', value: 'updatePipeline', description: 'Update a pipeline record' },
 			{ name: 'Delete', value: 'deletePipeline', description: 'Delete a pipeline record' },
 			{ name: 'Search', value: 'searchPipelines', description: 'Search pipeline records' },
+			{ name: 'Get Fields', value: 'getFields', description: 'Get metadata for pipeline fields' },
+			{ name: 'Bulk Create', value: 'bulkCreatePipelines', description: 'Create multiple pipeline records' },
+			{ name: 'Bulk Update', value: 'bulkUpdatePipelines', description: 'Update multiple pipeline records' },
 		],
 		default: 'listPipelines',
 	},
@@ -204,11 +207,17 @@ export const pipelinesFields: INodeProperties[] = [
 						type: 'options',
 						options: [
 							{ name: 'Equals', value: 'equals' },
+							{ name: 'Not Equals', value: 'not_equals' },
 							{ name: 'Contains', value: 'contains' },
+							{ name: 'Does Not Contain', value: 'not_contains' },
 							{ name: 'Starts With', value: 'starts_with' },
+							{ name: 'Ends With', value: 'ends_with' },
 							{ name: 'Greater Than', value: 'greater_than' },
 							{ name: 'Less Than', value: 'less_than' },
 							{ name: 'Between', value: 'between' },
+							{ name: 'In', value: 'in' },
+							{ name: 'Is Empty', value: 'is_empty' },
+							{ name: 'Is Not Empty', value: 'is_not_empty' },
 						],
 						default: 'equals',
 						description: 'Filter operator',
@@ -218,7 +227,12 @@ export const pipelinesFields: INodeProperties[] = [
 						name: 'value',
 						type: 'string',
 						default: '',
-						description: 'Value to filter by. For "between", use comma-separated values (e.g., "1000,5000")',
+						description: 'Value to filter by. For "between", use comma-separated values (e.g., "1000,5000"). For "in", use comma-separated values (e.g., "value1,value2,value3")',
+						displayOptions: {
+							show: {
+								operator: ['equals', 'not_equals', 'contains', 'not_contains', 'starts_with', 'ends_with', 'greater_than', 'less_than', 'between', 'in'],
+							},
+						},
 					},
 				],
 			},
@@ -238,5 +252,22 @@ export const pipelinesFields: INodeProperties[] = [
 			},
 		},
 		description: 'Search term to find in pipeline records',
+	},
+
+	// Bulk operations - Pipelines Data (JSON)
+	{
+		displayName: 'Pipelines Data',
+		name: 'pipelinesData',
+		type: 'json',
+		default: '[]',
+		required: true,
+		displayOptions: {
+			show: {
+				resource: ['pipeline'],
+				operation: ['bulkCreatePipelines', 'bulkUpdatePipelines'],
+			},
+		},
+		description: 'Array of pipeline objects (max 100)',
+		placeholder: '[{"Deal_Name": "Deal 1", "Amount": 5000}, {"Deal_Name": "Deal 2", "Amount": 10000}]',
 	},
 ];
