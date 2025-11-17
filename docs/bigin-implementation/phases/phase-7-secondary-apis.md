@@ -801,11 +801,16 @@ Consider for later phases:
 
 ## 🎓 Learning Resources
 
-- [Bigin Related Lists API](https://www.bigin.com/developer/docs/apis/v2/related-lists.html)
-- [Bigin Email API](https://www.bigin.com/developer/docs/apis/v2/send-email.html)
-- [Bigin Files API](https://www.bigin.com/developer/docs/apis/v2/files-api.html)
-- [Bigin Attachments API](https://www.bigin.com/developer/docs/apis/v2/attachments-api.html)
-- [Bigin Photos API](https://www.bigin.com/developer/docs/apis/v2/photos-api.html)
+### Related Lists APIs
+- [Related List Metadata API](https://www.bigin.com/developer/docs/apis/v2/related-list-meta.html)
+- [Get Related Records API](https://www.bigin.com/developer/docs/apis/v2/get-related-records.html)
+
+### Files & Attachments APIs
+- [Upload Files API](https://www.bigin.com/developer/docs/apis/v2/upload-files.html)
+- [Get Files API](https://www.bigin.com/developer/docs/apis/v2/get-files.html)
+- [Get Attachments API](https://www.bigin.com/developer/docs/apis/v2/get-attachments.html)
+
+### n8n Resources
 - [n8n Binary Data Handling](https://docs.n8n.io/code-examples/methods-and-variables/binary-data/)
 
 ---
