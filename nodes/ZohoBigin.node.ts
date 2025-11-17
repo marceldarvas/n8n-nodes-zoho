@@ -1226,6 +1226,23 @@ export class ZohoBigin implements INodeType {
 			);
 
 			return response.data || [];
+
+		} else if (operation === 'executeCOQL') {
+			const coqlQuery = context.getNodeParameter('coqlQuery', itemIndex) as string;
+
+			const body = {
+				select_query: coqlQuery,
+			};
+
+			const response = await zohoBiginApiRequest.call(
+				context,
+				'POST',
+				'/coql',
+				body,
+				{},
+			);
+
+			return response.data || [];
 		}
 
 		throw new NodeOperationError(
@@ -1859,6 +1876,23 @@ export class ZohoBigin implements INodeType {
 			);
 
 			return response.data || [];
+
+		} else if (operation === 'executeCOQL') {
+			const coqlQuery = context.getNodeParameter('coqlQuery', itemIndex) as string;
+
+			const body = {
+				select_query: coqlQuery,
+			};
+
+			const response = await zohoBiginApiRequest.call(
+				context,
+				'POST',
+				'/coql',
+				body,
+				{},
+			);
+
+			return response.data || [];
 		}
 
 		throw new NodeOperationError(
@@ -2486,6 +2520,23 @@ export class ZohoBigin implements INodeType {
 				context,
 				'POST',
 				'/Accounts/actions/change_owner',
+				body,
+				{},
+			);
+
+			return response.data || [];
+
+		} else if (operation === 'executeCOQL') {
+			const coqlQuery = context.getNodeParameter('coqlQuery', itemIndex) as string;
+
+			const body = {
+				select_query: coqlQuery,
+			};
+
+			const response = await zohoBiginApiRequest.call(
+				context,
+				'POST',
+				'/coql',
 				body,
 				{},
 			);
