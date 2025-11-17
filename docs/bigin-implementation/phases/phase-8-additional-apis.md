@@ -4,21 +4,22 @@
 
 ## 📋 Overview
 
-Phase 8 covers additional Bigin API operations discovered during comprehensive documentation review, deferred features from Phase 6, and production-readiness enhancements. These features round out the integration and prepare it for enterprise use.
+Phase 8 covers additional Bigin API operations discovered during comprehensive documentation review and production-readiness enhancements. These features round out the integration and prepare it for enterprise use.
 
 **Priority**: Medium (valuable for advanced workflows)
-**Estimated Effort**: 10-14 hours
+**Estimated Effort**: 8-11 hours
 **Dependencies**: Phase 7 complete
 **Blocks**: None
+
+**Note**: COQL Support was already implemented in branch `claude/add-coql-support-01JG4dhKCAefmuXiuUYCYZMr` ✅
 
 ## 🎯 Objectives
 
 1. 🔄 **Upsert Operations** - Insert or update records in one call
 2. 🗑️ **Deleted Records API** - Retrieve and manage deleted records
-3. 🔍 **COQL Support** - Advanced queries using Zoho Common Query Language
-4. 📊 **Modules & Settings APIs** - Dynamic module and field discovery
-5. 🔔 **Webhooks Integration** - Real-time notifications (optional)
-6. ⚡ **Performance & Production** - Rate limiting, caching, error recovery
+3. 📊 **Modules & Settings APIs** - Dynamic module and field discovery
+4. 🔔 **Webhooks Integration** - Real-time notifications (optional)
+5. ⚡ **Performance & Production** - Rate limiting, caching, error recovery
 
 ---
 
@@ -235,101 +236,7 @@ GET /bigin/v2/{module_api_name}/deleted
 
 ---
 
-## Feature 3: COQL Support (Deferred from Phase 6)
-
-### Overview
-
-Zoho Common Query Language (COQL) provides SQL-like querying capabilities for advanced filtering and data retrieval.
-
-### API Endpoint
-
-```
-POST /bigin/v2/coql
-```
-
-### COQL Syntax
-
-```sql
-SELECT First_Name, Last_Name, Email, Account_Name
-FROM Contacts
-WHERE (Email IS NOT NULL) AND (Created_Time > '2025-01-01')
-ORDER BY Created_Time DESC
-LIMIT 100
-OFFSET 0
-```
-
-### Request Body
-
-```json
-{
-    "select_query": "SELECT First_Name, Last_Name, Email FROM Contacts WHERE Email LIKE '%@example.com%' LIMIT 100"
-}
-```
-
-### Supported Features
-
-- **SELECT**: Specific fields or all fields
-- **FROM**: Module name
-- **WHERE**: Complex conditions with AND, OR, NOT
-- **ORDER BY**: Ascending or descending sort
-- **LIMIT/OFFSET**: Pagination
-- **Operators**: =, !=, <, >, <=, >=, LIKE, IN, NOT IN, IS NULL, IS NOT NULL
-- **Functions**: (limited - check documentation)
-
-### n8n Implementation
-
-```typescript
-{
-    displayName: 'COQL Query',
-    name: 'coqlQuery',
-    type: 'string',
-    typeOptions: {
-        rows: 5,
-    },
-    displayOptions: {
-        show: {
-            operation: ['coqlQuery'],
-        },
-    },
-    default: 'SELECT id, First_Name, Last_Name, Email FROM Contacts WHERE Email IS NOT NULL LIMIT 100',
-    required: true,
-    description: 'COQL query to execute',
-    placeholder: 'SELECT * FROM Contacts WHERE ...',
-},
-```
-
-### Handler Implementation
-
-```typescript
-} else if (operation === 'coqlQuery') {
-    const coqlQuery = this.getNodeParameter('coqlQuery', itemIndex) as string;
-
-    const body = {
-        select_query: coqlQuery,
-    };
-
-    const response = await zohoBiginApiRequest.call(
-        this,
-        'POST',
-        '/coql',
-        body,
-        {},
-    );
-
-    return response.data || [];
-}
-```
-
-### Use Cases
-
-1. **Complex Filtering**: Multi-field conditions not possible with standard filters
-2. **Cross-Module Queries**: Join-like operations (limited)
-3. **Aggregations**: Count, sum operations (if supported)
-4. **Data Analysis**: Export specific fields for reporting
-
----
-
-## Feature 4: Modules & Settings APIs
+## Feature 3: Modules & Settings APIs
 
 ### Overview
 
@@ -448,7 +355,7 @@ async getModuleFields(this: ILoadOptionsFunctions): Promise<INodePropertyOptions
 
 ---
 
-## Feature 5: Webhooks & Notifications (Optional)
+## Feature 4: Webhooks & Notifications (Optional)
 
 ### Overview
 
@@ -529,7 +436,7 @@ export class ZohoBiginTrigger implements INodeType {
 
 ---
 
-## Feature 6: Performance & Production Enhancements
+## Feature 5: Performance & Production Enhancements
 
 ### 1. Enhanced Rate Limit Handling
 
@@ -710,8 +617,9 @@ Recommended order based on value and effort:
 2. **Deleted Records API** (Medium value, low effort) - 1-2 hours
 3. **Modules & Settings APIs** (High value, medium effort) - 3-4 hours
 4. **Performance Enhancements** (High value, medium effort) - 2-3 hours
-5. **COQL Support** (Medium value, medium effort) - 2-3 hours
-6. **Webhooks** (Low value, high effort) - 4-6 hours (optional)
+5. **Webhooks** (Low value, high effort) - 4-6 hours (optional)
+
+**Note**: COQL Support was already implemented separately ✅
 
 ---
 
@@ -720,10 +628,6 @@ Recommended order based on value and effort:
 ### Upsert & Deleted Records
 - [Upsert Records API](https://www.bigin.com/developer/docs/apis/v2/upsert-records.html)
 - [List Deleted Records API](https://www.bigin.com/developer/docs/apis/v2/get-deleted-records.html)
-
-### COQL
-- [COQL Overview](https://www.bigin.com/developer/docs/apis/v2/coql-overview.html)
-- [COQL Tutorial](https://www.bigin.com/developer/docs/apis/v2/coql-tutorial.html)
 
 ### Modules & Settings
 - [Get Modules API](https://www.bigin.com/developer/docs/apis/v2/modules-api.html)
@@ -745,7 +649,6 @@ Recommended order based on value and effort:
 ### Feature Completion
 - [ ] Upsert operations for all main modules
 - [ ] Deleted records retrieval implemented
-- [ ] COQL query execution working
 - [ ] Module/field metadata retrieval
 - [ ] Organization info retrieval
 - [ ] Webhooks (if implemented)
@@ -778,13 +681,6 @@ Recommended order based on value and effort:
 - [ ] Filter by deletion type (recycle/permanent)
 - [ ] Pagination works correctly
 - [ ] Empty result handling
-
-### COQL
-- [ ] Simple SELECT query
-- [ ] Complex WHERE conditions
-- [ ] ORDER BY and LIMIT
-- [ ] Join-like queries (if supported)
-- [ ] Invalid syntax error handling
 
 ### Modules & Settings
 - [ ] Get all modules
@@ -843,6 +739,6 @@ Consider for later phases:
 
 **Estimated Version**: 1.6 (Additional APIs Complete)
 
-**Estimated Lines of Code**: ~1,200-1,500 (including handlers, descriptions, optimizations)
+**Estimated Lines of Code**: ~1,000-1,200 (including handlers, descriptions, optimizations)
 
-**Note**: This phase completes the comprehensive Bigin integration with all major API operations, advanced querying capabilities, and production-ready performance enhancements. After Phase 8, the integration will support virtually all Bigin use cases.
+**Note**: This phase completes the comprehensive Bigin integration with all remaining API operations and production-ready performance enhancements. COQL (advanced querying) was already implemented separately in branch `claude/add-coql-support-01JG4dhKCAefmuXiuUYCYZMr`. After Phase 8, the integration will support virtually all Bigin use cases.
