@@ -32,6 +32,12 @@ import {
  * Integrates with Zoho Bigin CRM API for managing pipelines, contacts, accounts, products, tasks, events, and notes
  */
 export class ZohoBigin implements INodeType {
+	/**
+	 * Metadata cache for performance optimization
+	 * Caches field metadata and other rarely-changing data
+	 */
+	private static metadataCache: Map<string, { data: IDataObject; expiry: number }> = new Map();
+
 	description: INodeTypeDescription = {
 		displayName: 'Zoho Bigin',
 		name: 'zohoBigin',
@@ -256,6 +262,90 @@ export class ZohoBigin implements INodeType {
 	}
 
 	/**
+	 * Get cached metadata with automatic expiration
+	 * Caches metadata for 1 hour to reduce API calls
+	 *
+	 * @param key - Cache key (e.g., 'fields:Contacts')
+	 * @param fetcher - Function to fetch data if not cached or expired
+	 * @returns Cached or freshly fetched data
+	 */
+	private static async getCachedMetadata(
+		key: string,
+		fetcher: () => Promise<IDataObject>,
+	): Promise<IDataObject> {
+		const cached = ZohoBigin.metadataCache.get(key);
+		const now = Date.now();
+
+		if (cached && cached.expiry > now) {
+			return cached.data;
+		}
+
+		const data = await fetcher();
+		ZohoBigin.metadataCache.set(key, {
+			data,
+			expiry: now + (60 * 60 * 1000), // 1 hour
+		});
+
+		return data;
+	}
+
+	/**
+	 * Fetch all pages of data automatically
+	 * Continues fetching until no more pages are available
+	 *
+	 * @param context - The IExecuteFunctions instance
+	 * @param endpoint - The API endpoint to fetch from
+	 * @param filters - Optional filters to apply
+	 * @returns All records from all pages
+	 */
+	private static async fetchAllPages(
+		context: IExecuteFunctions,
+		endpoint: string,
+		filters?: Array<{ field: string; operator: string; value?: string }>,
+	): Promise<IDataObject[]> {
+		let allData: IDataObject[] = [];
+		let page = 1;
+		let hasMore = true;
+
+		while (hasMore) {
+			const qs: IDataObject = {
+				page,
+				per_page: 200,
+			};
+
+			// Add filters if provided
+			if (filters && filters.length > 0) {
+				const criteria = ZohoBigin.buildCriteriaString(filters);
+				if (criteria) {
+					qs.criteria = criteria;
+				}
+			}
+
+			const response = await zohoBiginApiRequest.call(
+				context,
+				'GET',
+				endpoint,
+				{},
+				qs,
+			);
+
+			const data = response.data || [];
+			allData = allData.concat(data);
+
+			// Check if we got a full page (200 records), which means there might be more
+			hasMore = data.length === 200;
+			page++;
+
+			// Rate limiting between pages
+			if (hasMore) {
+				await new Promise(resolve => setTimeout(resolve, 500));
+			}
+		}
+
+		return allData;
+	}
+
+	/**
 	 * Handle Pipeline (Deals) operations
 	 * Operations: list, get, create, update, delete, search
 	 *
@@ -271,15 +361,25 @@ export class ZohoBigin implements INodeType {
 		baseUrl: string,
 	): Promise<IDataObject | IDataObject[]> {
 		if (operation === 'listPipelines') {
-			const page = context.getNodeParameter('page', itemIndex, 1) as number;
-			const perPage = context.getNodeParameter('perPage', itemIndex, 200) as number;
+			const returnAll = context.getNodeParameter('returnAll', itemIndex, false) as boolean;
 			const filters = context.getNodeParameter('filters', itemIndex, { filter: [] }) as {
 				filter: Array<{ field: string; operator: string; value?: string }>;
 			};
 
+			// Use optimized fetchAllPages helper if returnAll is true
+			if (returnAll) {
+				return await ZohoBigin.fetchAllPages(
+					context,
+					'/Pipelines',
+					filters.filter && filters.filter.length > 0 ? filters.filter : undefined,
+				);
+			}
+
+			// Otherwise, fetch single page with limit
+			const limit = context.getNodeParameter('limit', itemIndex, 50) as number;
 			const qs: IDataObject = {
-				page,
-				per_page: perPage,
+				page: 1,
+				per_page: limit,
 			};
 
 			// Add advanced filters if provided
@@ -537,15 +637,20 @@ export class ZohoBigin implements INodeType {
 			return results;
 
 		} else if (operation === 'getFields') {
-			const response = await zohoBiginApiRequest.call(
-				context,
-				'GET',
-				'/settings/fields?module=Pipelines',
-				{},
-				{},
-			);
+			// Use cached metadata to reduce API calls
+			const cacheKey = 'fields:Pipelines';
+			const result = await ZohoBigin.getCachedMetadata(cacheKey, async () => {
+				const response = await zohoBiginApiRequest.call(
+					context,
+					'GET',
+					'/settings/fields?module=Pipelines',
+					{},
+					{},
+				);
+				return { fields: response.fields || [] };
+			});
 
-			return response.fields || [];
+			return result.fields as IDataObject[];
 		}
 
 		throw new NodeOperationError(
@@ -565,15 +670,25 @@ export class ZohoBigin implements INodeType {
 		baseUrl: string,
 	): Promise<IDataObject | IDataObject[]> {
 		if (operation === 'listContacts') {
-			const page = context.getNodeParameter('page', itemIndex, 1) as number;
-			const perPage = context.getNodeParameter('perPage', itemIndex, 200) as number;
+			const returnAll = context.getNodeParameter('returnAll', itemIndex, false) as boolean;
 			const filters = context.getNodeParameter('filters', itemIndex, { filter: [] }) as {
 				filter: Array<{ field: string; operator: string; value?: string }>;
 			};
 
+			// Use optimized fetchAllPages helper if returnAll is true
+			if (returnAll) {
+				return await ZohoBigin.fetchAllPages(
+					context,
+					'/Contacts',
+					filters.filter && filters.filter.length > 0 ? filters.filter : undefined,
+				);
+			}
+
+			// Otherwise, fetch single page with limit
+			const limit = context.getNodeParameter('limit', itemIndex, 50) as number;
 			const qs: IDataObject = {
-				page,
-				per_page: perPage,
+				page: 1,
+				per_page: limit,
 			};
 
 			// Add advanced filters if provided
@@ -831,15 +946,20 @@ export class ZohoBigin implements INodeType {
 			return results;
 
 		} else if (operation === 'getFields') {
-			const response = await zohoBiginApiRequest.call(
-				context,
-				'GET',
-				'/settings/fields?module=Contacts',
-				{},
-				{},
-			);
+			// Use cached metadata to reduce API calls
+			const cacheKey = 'fields:Contacts';
+			const result = await ZohoBigin.getCachedMetadata(cacheKey, async () => {
+				const response = await zohoBiginApiRequest.call(
+					context,
+					'GET',
+					'/settings/fields?module=Contacts',
+					{},
+					{},
+				);
+				return { fields: response.fields || [] };
+			});
 
-			return response.fields || [];
+			return result.fields as IDataObject[];
 		}
 
 		throw new NodeOperationError(
@@ -859,15 +979,25 @@ export class ZohoBigin implements INodeType {
 		baseUrl: string,
 	): Promise<IDataObject | IDataObject[]> {
 		if (operation === 'listAccounts') {
-			const page = context.getNodeParameter('page', itemIndex, 1) as number;
-			const perPage = context.getNodeParameter('perPage', itemIndex, 200) as number;
+			const returnAll = context.getNodeParameter('returnAll', itemIndex, false) as boolean;
 			const filters = context.getNodeParameter('filters', itemIndex, { filter: [] }) as {
 				filter: Array<{ field: string; operator: string; value?: string }>;
 			};
 
+			// Use optimized fetchAllPages helper if returnAll is true
+			if (returnAll) {
+				return await ZohoBigin.fetchAllPages(
+					context,
+					'/Accounts',
+					filters.filter && filters.filter.length > 0 ? filters.filter : undefined,
+				);
+			}
+
+			// Otherwise, fetch single page with limit
+			const limit = context.getNodeParameter('limit', itemIndex, 50) as number;
 			const qs: IDataObject = {
-				page,
-				per_page: perPage,
+				page: 1,
+				per_page: limit,
 			};
 
 			// Add advanced filters if provided
@@ -1125,15 +1255,20 @@ export class ZohoBigin implements INodeType {
 			return results;
 
 		} else if (operation === 'getFields') {
-			const response = await zohoBiginApiRequest.call(
-				context,
-				'GET',
-				'/settings/fields?module=Accounts',
-				{},
-				{},
-			);
+			// Use cached metadata to reduce API calls
+			const cacheKey = 'fields:Accounts';
+			const result = await ZohoBigin.getCachedMetadata(cacheKey, async () => {
+				const response = await zohoBiginApiRequest.call(
+					context,
+					'GET',
+					'/settings/fields?module=Accounts',
+					{},
+					{},
+				);
+				return { fields: response.fields || [] };
+			});
 
-			return response.fields || [];
+			return result.fields as IDataObject[];
 		}
 
 		throw new NodeOperationError(
@@ -1153,15 +1288,25 @@ export class ZohoBigin implements INodeType {
 		baseUrl: string,
 	): Promise<IDataObject | IDataObject[]> {
 		if (operation === 'listProducts') {
-			const page = context.getNodeParameter('page', itemIndex, 1) as number;
-			const perPage = context.getNodeParameter('perPage', itemIndex, 200) as number;
+			const returnAll = context.getNodeParameter('returnAll', itemIndex, false) as boolean;
 			const filters = context.getNodeParameter('filters', itemIndex, { filter: [] }) as {
 				filter: Array<{ field: string; operator: string; value?: string }>;
 			};
 
+			// Use optimized fetchAllPages helper if returnAll is true
+			if (returnAll) {
+				return await ZohoBigin.fetchAllPages(
+					context,
+					'/Products',
+					filters.filter && filters.filter.length > 0 ? filters.filter : undefined,
+				);
+			}
+
+			// Otherwise, fetch single page with limit
+			const limit = context.getNodeParameter('limit', itemIndex, 50) as number;
 			const qs: IDataObject = {
-				page,
-				per_page: perPage,
+				page: 1,
+				per_page: limit,
 			};
 
 			// Add advanced filters if provided
@@ -1401,15 +1546,20 @@ export class ZohoBigin implements INodeType {
 			return results;
 
 		} else if (operation === 'getFields') {
-			const response = await zohoBiginApiRequest.call(
-				context,
-				'GET',
-				'/settings/fields?module=Products',
-				{},
-				{},
-			);
+			// Use cached metadata to reduce API calls
+			const cacheKey = 'fields:Products';
+			const result = await ZohoBigin.getCachedMetadata(cacheKey, async () => {
+				const response = await zohoBiginApiRequest.call(
+					context,
+					'GET',
+					'/settings/fields?module=Products',
+					{},
+					{},
+				);
+				return { fields: response.fields || [] };
+			});
 
-			return response.fields || [];
+			return result.fields as IDataObject[];
 		}
 
 		throw new NodeOperationError(
@@ -1429,12 +1579,18 @@ export class ZohoBigin implements INodeType {
 		baseUrl: string,
 	): Promise<IDataObject | IDataObject[]> {
 		if (operation === 'listTasks') {
-			const page = context.getNodeParameter('page', itemIndex, 1) as number;
-			const perPage = context.getNodeParameter('perPage', itemIndex, 200) as number;
+			const returnAll = context.getNodeParameter('returnAll', itemIndex, false) as boolean;
 
+			// Use optimized fetchAllPages helper if returnAll is true
+			if (returnAll) {
+				return await ZohoBigin.fetchAllPages(context, '/Tasks');
+			}
+
+			// Otherwise, fetch single page with limit
+			const limit = context.getNodeParameter('limit', itemIndex, 50) as number;
 			const qs: IDataObject = {
-				page,
-				per_page: perPage,
+				page: 1,
+				per_page: limit,
 			};
 
 			const response = await zohoBiginApiRequest.call(
@@ -1555,12 +1711,18 @@ export class ZohoBigin implements INodeType {
 		baseUrl: string,
 	): Promise<IDataObject | IDataObject[]> {
 		if (operation === 'listEvents') {
-			const page = context.getNodeParameter('page', itemIndex, 1) as number;
-			const perPage = context.getNodeParameter('perPage', itemIndex, 200) as number;
+			const returnAll = context.getNodeParameter('returnAll', itemIndex, false) as boolean;
 
+			// Use optimized fetchAllPages helper if returnAll is true
+			if (returnAll) {
+				return await ZohoBigin.fetchAllPages(context, '/Events');
+			}
+
+			// Otherwise, fetch single page with limit
+			const limit = context.getNodeParameter('limit', itemIndex, 50) as number;
 			const qs: IDataObject = {
-				page,
-				per_page: perPage,
+				page: 1,
+				per_page: limit,
 			};
 
 			const response = await zohoBiginApiRequest.call(
@@ -1685,12 +1847,18 @@ export class ZohoBigin implements INodeType {
 		baseUrl: string,
 	): Promise<IDataObject | IDataObject[]> {
 		if (operation === 'listNotes') {
-			const page = context.getNodeParameter('page', itemIndex, 1) as number;
-			const perPage = context.getNodeParameter('perPage', itemIndex, 200) as number;
+			const returnAll = context.getNodeParameter('returnAll', itemIndex, false) as boolean;
 
+			// Use optimized fetchAllPages helper if returnAll is true
+			if (returnAll) {
+				return await ZohoBigin.fetchAllPages(context, '/Notes');
+			}
+
+			// Otherwise, fetch single page with limit
+			const limit = context.getNodeParameter('limit', itemIndex, 50) as number;
 			const qs: IDataObject = {
-				page,
-				per_page: perPage,
+				page: 1,
+				per_page: limit,
 			};
 
 			const response = await zohoBiginApiRequest.call(

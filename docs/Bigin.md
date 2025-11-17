@@ -949,6 +949,165 @@ return items[0].json.fields.filter(field => field.data_type === 'picklist');
 
 ---
 
+## Performance Optimizations
+
+The Zoho Bigin node includes several performance optimizations to improve efficiency and reduce API calls.
+
+### 1. Metadata Caching
+
+**Feature**: Automatic caching of field metadata with 1-hour expiration
+
+Field metadata (from "Get Fields" operations) is automatically cached for 1 hour to reduce redundant API calls. This significantly improves performance when workflows frequently access field information.
+
+**Benefits**:
+- **Reduced API Calls**: Field metadata is fetched only once per hour per module
+- **Faster Execution**: Cached data returns instantly without network latency
+- **Lower API Quota Usage**: Conserves API rate limits for actual data operations
+
+**How It Works**:
+```
+First call to "Get Fields" for Contacts:
+  → API request sent
+  → Response cached with 1-hour expiry
+  → Data returned
+
+Subsequent calls within 1 hour:
+  → Returns cached data instantly
+  → No API request made
+
+After 1 hour expiry:
+  → Cache refreshed on next request
+  → New 1-hour cache period begins
+```
+
+**Example Scenario**:
+If your workflow retrieves Contact fields 10 times within an hour, only 1 API call is made instead of 10.
+
+### 2. Automatic Pagination
+
+**Feature**: "Return All" option fetches all pages automatically
+
+List operations (List Contacts, List Pipelines, List Accounts, List Products) include a "Return All" toggle that automatically fetches all records across multiple pages.
+
+**Parameters**:
+- **Return All**: When enabled, fetches all records automatically (default: false)
+- **Limit**: When "Return All" is disabled, limits results to specified number (default: 50)
+
+**How It Works**:
+```
+With "Return All" = true:
+  → Fetches 200 records (page 1)
+  → Automatically fetches page 2 if 200 records returned
+  → Continues until no more records available
+  → Returns combined results from all pages
+
+With "Return All" = false and Limit = 50:
+  → Fetches only first 50 records
+  → Single API call
+  → Returns immediately
+```
+
+**Rate Limiting**:
+The automatic pagination includes a 500ms delay between page requests to prevent API throttling.
+
+**Example Use Case**:
+```
+Scenario: You have 450 contacts in Bigin
+
+Option 1 - Return All = true:
+  → Page 1: 200 contacts (wait 500ms)
+  → Page 2: 200 contacts (wait 500ms)
+  → Page 3: 50 contacts
+  → Total: 450 contacts returned
+
+Option 2 - Return All = false, Limit = 100:
+  → Returns first 100 contacts only
+  → Single API call
+```
+
+### 3. Advanced Filtering Support
+
+**Feature**: Server-side filtering reduces data transfer
+
+Advanced filters are applied on the Bigin API server, reducing the amount of data transferred and improving performance.
+
+**Benefits**:
+- **Reduced Bandwidth**: Only matching records are returned
+- **Faster Processing**: Less data to process in n8n
+- **Lower Memory Usage**: Smaller result sets consume less memory
+
+**Example**:
+```
+Without Filters:
+  → Fetch all 1,000 contacts
+  → Filter in n8n to find 5 matching contacts
+  → 1,000 records transferred
+
+With Advanced Filters:
+  → Bigin filters on server
+  → Returns only 5 matching contacts
+  → 5 records transferred
+```
+
+### 4. Bulk Operations Batching
+
+**Feature**: Automatic batching for large datasets
+
+Bulk Create and Bulk Update operations automatically split large datasets into batches of 100 records (Bigin's API limit) with rate limiting.
+
+**Benefits**:
+- **Handles Large Datasets**: Process thousands of records without manual batching
+- **Rate Limit Protection**: 1-second delay between batches prevents throttling
+- **Error Resilience**: Individual batch failures don't affect entire operation
+
+**How It Works**:
+```
+Bulk Create with 350 contacts:
+  → Batch 1: 100 contacts (wait 1 second)
+  → Batch 2: 100 contacts (wait 1 second)
+  → Batch 3: 100 contacts (wait 1 second)
+  → Batch 4: 50 contacts
+  → Total: 350 contacts created
+```
+
+### Performance Best Practices
+
+1. **Use "Return All" Wisely**
+   - Enable for complete data exports
+   - Disable for large datasets when only a sample is needed
+   - Consider using filters to reduce result size
+
+2. **Leverage Metadata Caching**
+   - Call "Get Fields" at workflow start, not in loops
+   - Reuse field metadata across multiple nodes
+   - Cache results in workflow variables for complex workflows
+
+3. **Apply Filters Early**
+   - Use Advanced Filtering instead of fetching all records and filtering in n8n
+   - Combine multiple filter conditions to reduce results
+   - Use specific filter operators (equals, contains, etc.)
+
+4. **Optimize Bulk Operations**
+   - Prepare data in batches before calling bulk operations
+   - Validate data before bulk operations to avoid partial failures
+   - Monitor rate limits when processing very large datasets
+
+5. **Reduce API Calls**
+   - Use bulk operations instead of multiple individual creates/updates
+   - Enable caching for field metadata
+   - Use "Return All" instead of manual pagination in loops
+
+### Performance Comparison
+
+| Operation | Without Optimization | With Optimization | Improvement |
+|-----------|---------------------|-------------------|-------------|
+| Get Fields (10 times in 1 hour) | 10 API calls | 1 API call | 90% reduction |
+| List 450 Contacts (manual pagination) | 3 API calls + manual loop | 3 API calls (automatic) | Simplified workflow |
+| Filter 1,000 Contacts (5 matches) | Transfer 1,000 records | Transfer 5 records | 99.5% reduction |
+| Create 350 Contacts | 350 API calls | 4 API calls | 98.9% reduction |
+
+---
+
 ## Troubleshooting
 
 ### Issue: "Invalid Token" Error
@@ -995,7 +1154,7 @@ return items[0].json.fields.filter(field => field.data_type === 'picklist');
 
 ---
 
-**Last Updated**: 2025-11-15
-**Node Version**: 1.3 (Phase 6 - Advanced Features: Bulk Operations + Advanced Filtering + Field Metadata)
+**Last Updated**: 2025-11-17
+**Node Version**: 1.4 (Phase 6 - Advanced Features: Bulk Operations + Advanced Filtering + Field Metadata + Performance Optimizations)
 **API Version**: v2
 **Status**: Production Ready
