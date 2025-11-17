@@ -657,7 +657,16 @@ private async handlePipelineOperations(
 
 ## 📚 Related Resources
 
-- **Official API**: https://www.bigin.com/developer/docs/apis/v2/pipelines-api.html
+### Bigin API v2 Documentation
+- **Get Records API**: https://www.bigin.com/developer/docs/apis/v2/get-records.html - Retrieve pipeline records
+- **Insert Records API**: https://www.bigin.com/developer/docs/apis/v2/insert-records.html - Create new pipelines
+- **Update Records API**: https://www.bigin.com/developer/docs/apis/v2/update-records.html - Update pipeline data
+- **Delete Records API**: https://www.bigin.com/developer/docs/apis/v2/delete-records.html - Delete pipelines
+- **Search Records API**: https://www.bigin.com/developer/docs/apis/v2/search-records.html - Advanced pipeline search
+- **Field Meta Data API**: https://www.bigin.com/developer/docs/apis/v2/field-meta.html - Get field definitions
+- **Modules API**: https://www.bigin.com/developer/docs/apis/v2/modules-api.html - Module configuration
+
+### Additional Resources
 - **Field Reference**: Retrieve via `/settings/fields?module=Pipelines`
 - **Related Modules**: Contacts, Accounts, Products, Tasks
 

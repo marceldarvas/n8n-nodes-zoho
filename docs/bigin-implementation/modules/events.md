@@ -89,4 +89,16 @@ Events represent calendar appointments, meetings, and scheduled activities. Even
 
 ---
 
+## 📚 Related Resources
+
+### Bigin API v2 Documentation
+- **Get Records API**: https://www.bigin.com/developer/docs/apis/v2/get-records.html - Retrieve event records
+- **Insert Records API**: https://www.bigin.com/developer/docs/apis/v2/insert-records.html - Create new events
+- **Update Records API**: https://www.bigin.com/developer/docs/apis/v2/update-records.html - Update event data
+- **Delete Records API**: https://www.bigin.com/developer/docs/apis/v2/delete-records.html - Delete events
+- **Search Records API**: https://www.bigin.com/developer/docs/apis/v2/search-records.html - Advanced event search
+- **Field Meta Data API**: https://www.bigin.com/developer/docs/apis/v2/field-meta.html - Get field definitions
+
+---
+
 **Status**: 📝 Ready for Implementation

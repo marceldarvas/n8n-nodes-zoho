@@ -115,5 +115,16 @@ Accounts can have hierarchical relationships:
 
 ---
 
-**API Reference**: https://www.bigin.com/developer/docs/apis/v2/accounts-api.html
+## 📚 Related Resources
+
+### Bigin API v2 Documentation
+- **Get Records API**: https://www.bigin.com/developer/docs/apis/v2/get-records.html - Retrieve account records
+- **Insert Records API**: https://www.bigin.com/developer/docs/apis/v2/insert-records.html - Create new accounts
+- **Update Records API**: https://www.bigin.com/developer/docs/apis/v2/update-records.html - Update account data
+- **Delete Records API**: https://www.bigin.com/developer/docs/apis/v2/delete-records.html - Delete accounts
+- **Search Records API**: https://www.bigin.com/developer/docs/apis/v2/search-records.html - Advanced account search
+- **Field Meta Data API**: https://www.bigin.com/developer/docs/apis/v2/field-meta.html - Get field definitions
+
+---
+
 **Status**: 📝 Ready for Implementation

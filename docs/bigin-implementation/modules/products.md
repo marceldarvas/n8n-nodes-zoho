@@ -72,4 +72,16 @@ Products represent items or services your company sells. Products can be associa
 
 ---
 
+## 📚 Related Resources
+
+### Bigin API v2 Documentation
+- **Get Records API**: https://www.bigin.com/developer/docs/apis/v2/get-records.html - Retrieve product records
+- **Insert Records API**: https://www.bigin.com/developer/docs/apis/v2/insert-records.html - Create new products
+- **Update Records API**: https://www.bigin.com/developer/docs/apis/v2/update-records.html - Update product data
+- **Delete Records API**: https://www.bigin.com/developer/docs/apis/v2/delete-records.html - Delete products
+- **Search Records API**: https://www.bigin.com/developer/docs/apis/v2/search-records.html - Advanced product search
+- **Field Meta Data API**: https://www.bigin.com/developer/docs/apis/v2/field-meta.html - Get field definitions
+
+---
+
 **Status**: 📝 Ready for Implementation

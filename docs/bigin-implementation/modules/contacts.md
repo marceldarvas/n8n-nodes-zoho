@@ -163,5 +163,17 @@ const body = {
 
 ---
 
-**API Reference**: https://www.bigin.com/developer/docs/apis/v2/contacts-api.html
+## 📚 Related Resources
+
+### Bigin API v2 Documentation
+- **Get Records API**: https://www.bigin.com/developer/docs/apis/v2/get-records.html - Retrieve contact records
+- **Insert Records API**: https://www.bigin.com/developer/docs/apis/v2/insert-records.html - Create new contacts
+- **Update Records API**: https://www.bigin.com/developer/docs/apis/v2/update-records.html - Update contact data
+- **Delete Records API**: https://www.bigin.com/developer/docs/apis/v2/delete-records.html - Delete contacts
+- **Search Records API**: https://www.bigin.com/developer/docs/apis/v2/search-records.html - Advanced contact search
+- **Field Meta Data API**: https://www.bigin.com/developer/docs/apis/v2/field-meta.html - Get field definitions
+- **Bulk Write API**: https://www.bigin.com/developer/docs/apis/v2/bulk-write.html - Bulk operations (up to 100 records)
+
+---
+
 **Status**: 📝 Ready for Implementation
