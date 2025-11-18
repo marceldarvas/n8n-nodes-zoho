@@ -1079,6 +1079,57 @@ export class ZohoBigin implements INodeType {
 
 			return response.data || [];
 
+		} else if (operation === 'getDeletedRecords') {
+			const returnAll = context.getNodeParameter('returnAll', itemIndex, false) as boolean;
+			const deletionType = context.getNodeParameter('deletionType', itemIndex, 'all') as string;
+
+			const qs: IDataObject = {
+				type: deletionType,
+			};
+
+			if (returnAll) {
+				// Fetch all deleted records with pagination
+				let allRecords: IDataObject[] = [];
+				let page = 1;
+				let moreRecords = true;
+
+				while (moreRecords) {
+					qs.page = page;
+					qs.per_page = 200; // Max allowed per page
+
+					const response = await zohoBiginApiRequest.call(
+						context,
+						'GET',
+						'/Deals/deleted',
+						{},
+						qs,
+					);
+
+					const records = response.data || [];
+					allRecords = allRecords.concat(records);
+
+					moreRecords = response.info?.more_records || false;
+					page++;
+				}
+
+				return allRecords;
+			} else {
+				// Fetch single page
+				const limit = context.getNodeParameter('limit', itemIndex, 50) as number;
+				qs.page = 1;
+				qs.per_page = limit;
+
+				const response = await zohoBiginApiRequest.call(
+					context,
+					'GET',
+					'/Deals/deleted',
+					{},
+					qs,
+				);
+
+				return response.data || [];
+			}
+
 		} else if (operation === 'bulkCreatePipelines') {
 			const pipelinesDataRaw = context.getNodeParameter('pipelinesData', itemIndex) as string;
 

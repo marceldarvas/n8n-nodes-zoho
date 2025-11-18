@@ -18,6 +18,7 @@ export const pipelinesOperations: INodeProperties[] = [
 			{ name: 'Delete', value: 'deletePipeline', description: 'Delete a pipeline record' },
 			{ name: 'Upsert', value: 'upsertPipeline', description: 'Create or update a pipeline (idempotent)' },
 			{ name: 'Search', value: 'searchPipelines', description: 'Search pipeline records' },
+			{ name: 'Get Deleted Records', value: 'getDeletedRecords', description: 'Get deleted pipelines with metadata' },
 			{ name: 'Get Fields', value: 'getFields', description: 'Get metadata for pipeline fields' },
 			{ name: 'Bulk Create', value: 'bulkCreatePipelines', description: 'Create multiple pipeline records' },
 			{ name: 'Bulk Update', value: 'bulkUpdatePipelines', description: 'Update multiple pipeline records' },
@@ -283,6 +284,29 @@ export const pipelinesFields: INodeProperties[] = [
 		],
 		default: ['Deal_Name'],
 		description: 'Fields to use for duplicate detection. If a pipeline with matching values exists, it will be updated; otherwise, a new pipeline will be created.',
+	},
+
+	// Get Deleted Records - Pagination
+	...paginationFields('pipeline', 'getDeletedRecords'),
+
+	// Get Deleted Records - Deletion Type
+	{
+		displayName: 'Deletion Type',
+		name: 'deletionType',
+		type: 'options',
+		displayOptions: {
+			show: {
+				resource: ['pipeline'],
+				operation: ['getDeletedRecords'],
+			},
+		},
+		options: [
+			{ name: 'All', value: 'all', description: 'All deleted records' },
+			{ name: 'Recycle Bin', value: 'recycle', description: 'Records in recycle bin (recoverable)' },
+			{ name: 'Permanent', value: 'permanent', description: 'Permanently deleted records' },
+		],
+		default: 'all',
+		description: 'Type of deleted records to retrieve',
 	},
 
 	// Bulk operations - Pipelines Data (JSON)
