@@ -18,6 +18,7 @@ export const accountsOperations: INodeProperties[] = [
 			{ name: 'Upsert', value: 'upsertAccount', description: 'Create or update a company/account (idempotent)' },
 			{ name: 'Delete', value: 'deleteAccount', description: 'Delete a company/account' },
 			{ name: 'Search', value: 'searchAccounts', description: 'Search companies/accounts' },
+			{ name: 'Get Deleted Records', value: 'getDeletedRecords', description: 'Get deleted accounts with metadata' },
 			{ name: 'Get Fields', value: 'getFields', description: 'Get metadata for account fields' },
 			{ name: 'Bulk Create', value: 'bulkCreateAccounts', description: 'Create multiple companies/accounts' },
 			{ name: 'Bulk Update', value: 'bulkUpdateAccounts', description: 'Update multiple companies/accounts' },
@@ -390,6 +391,29 @@ export const accountsFields: INodeProperties[] = [
 				],
 			},
 		],
+	},
+
+	// Get Deleted Records - Pagination
+	...paginationFields('account', 'getDeletedRecords'),
+
+	// Get Deleted Records - Deletion Type
+	{
+		displayName: 'Deletion Type',
+		name: 'deletionType',
+		type: 'options',
+		displayOptions: {
+			show: {
+				resource: ['account'],
+				operation: ['getDeletedRecords'],
+			},
+		},
+		options: [
+			{ name: 'All', value: 'all', description: 'All deleted records' },
+			{ name: 'Recycle Bin', value: 'recycle', description: 'Records in recycle bin (recoverable)' },
+			{ name: 'Permanent', value: 'permanent', description: 'Permanently deleted records' },
+		],
+		default: 'all',
+		description: 'Type of deleted records to retrieve',
 	},
 
 	// Bulk operations - Accounts Data (JSON)
