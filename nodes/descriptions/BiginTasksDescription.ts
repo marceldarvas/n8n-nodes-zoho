@@ -16,6 +16,7 @@ export const tasksOperations: INodeProperties[] = [
 			{ name: 'Create', value: 'createTask', description: 'Create a task' },
 			{ name: 'Update', value: 'updateTask', description: 'Update a task' },
 			{ name: 'Delete', value: 'deleteTask', description: 'Delete a task' },
+			{ name: 'Upsert', value: 'upsertTask', description: 'Create or update a task (idempotent)' },
 		],
 		default: 'listTasks',
 	},
@@ -50,7 +51,7 @@ export const tasksFields: INodeProperties[] = [
 		displayOptions: {
 			show: {
 				resource: ['task'],
-				operation: ['createTask'],
+				operation: ['createTask', 'upsertTask'],
 			},
 		},
 		default: '',
@@ -67,7 +68,7 @@ export const tasksFields: INodeProperties[] = [
 		displayOptions: {
 			show: {
 				resource: ['task'],
-				operation: ['createTask', 'updateTask'],
+				operation: ['createTask', 'updateTask', 'upsertTask'],
 			},
 		},
 		options: [
@@ -200,5 +201,26 @@ export const tasksFields: INodeProperties[] = [
 				],
 			},
 		],
+	},
+
+	// Upsert operation - Duplicate Check Fields
+	{
+		displayName: 'Duplicate Check Fields',
+		name: 'duplicateCheckFields',
+		type: 'multiOptions',
+		required: true,
+		displayOptions: {
+			show: {
+				resource: ['task'],
+				operation: ['upsertTask'],
+			},
+		},
+		options: [
+			{ name: 'Subject', value: 'Subject' },
+			{ name: 'Due Date', value: 'Due_Date' },
+			{ name: 'Related To', value: 'Related_To' },
+		],
+		default: ['Subject'],
+		description: 'Fields to use for duplicate detection. If a task with matching values exists, it will be updated; otherwise, a new task will be created.',
 	},
 ];
