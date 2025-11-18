@@ -3689,6 +3689,35 @@ export class ZohoBigin implements INodeType {
 
 			return response.data?.[0]?.details || {};
 
+		} else if (operation === 'upsertEvent') {
+			const eventTitle = context.getNodeParameter('eventTitle', itemIndex) as string;
+			const startDateTime = context.getNodeParameter('startDateTime', itemIndex) as string;
+			const endDateTime = context.getNodeParameter('endDateTime', itemIndex) as string;
+			const duplicateCheckFields = context.getNodeParameter('duplicateCheckFields', itemIndex) as string[];
+			const additionalFields = context.getNodeParameter('additionalFields', itemIndex, {}) as IDataObject;
+
+			const eventData: IDataObject = {
+				Event_Title: eventTitle,
+				Start_DateTime: startDateTime,
+				End_DateTime: endDateTime,
+				...additionalFields,
+			};
+
+			const body: IDataObject = {
+				data: [eventData],
+				duplicate_check_fields: duplicateCheckFields,
+			};
+
+			const response = await zohoBiginApiRequest.call(
+				context,
+				'POST',
+				'/Events/upsert',
+				body,
+				{},
+			);
+
+			return response.data?.[0]?.details || {};
+
 		} else if (operation === 'searchEvents') {
 			const searchTerm = context.getNodeParameter('searchTerm', itemIndex) as string;
 			const searchField = context.getNodeParameter('searchField', itemIndex, 'Event_Title') as string;

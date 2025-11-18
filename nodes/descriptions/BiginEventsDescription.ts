@@ -16,6 +16,7 @@ export const eventsOperations: INodeProperties[] = [
 			{ name: 'Create', value: 'createEvent', description: 'Create an event' },
 			{ name: 'Update', value: 'updateEvent', description: 'Update an event' },
 			{ name: 'Delete', value: 'deleteEvent', description: 'Delete an event' },
+			{ name: 'Upsert', value: 'upsertEvent', description: 'Create or update an event (idempotent)' },
 		],
 		default: 'listEvents',
 	},
@@ -50,7 +51,7 @@ export const eventsFields: INodeProperties[] = [
 		displayOptions: {
 			show: {
 				resource: ['event'],
-				operation: ['createEvent'],
+				operation: ['createEvent', 'upsertEvent'],
 			},
 		},
 		default: '',
@@ -64,7 +65,7 @@ export const eventsFields: INodeProperties[] = [
 		displayOptions: {
 			show: {
 				resource: ['event'],
-				operation: ['createEvent'],
+				operation: ['createEvent', 'upsertEvent'],
 			},
 		},
 		default: '',
@@ -78,7 +79,7 @@ export const eventsFields: INodeProperties[] = [
 		displayOptions: {
 			show: {
 				resource: ['event'],
-				operation: ['createEvent'],
+				operation: ['createEvent', 'upsertEvent'],
 			},
 		},
 		default: '',
@@ -95,7 +96,7 @@ export const eventsFields: INodeProperties[] = [
 		displayOptions: {
 			show: {
 				resource: ['event'],
-				operation: ['createEvent', 'updateEvent'],
+				operation: ['createEvent', 'updateEvent', 'upsertEvent'],
 			},
 		},
 		options: [
@@ -223,5 +224,27 @@ export const eventsFields: INodeProperties[] = [
 				],
 			},
 		],
+	},
+
+	// Upsert operation - Duplicate Check Fields
+	{
+		displayName: 'Duplicate Check Fields',
+		name: 'duplicateCheckFields',
+		type: 'multiOptions',
+		required: true,
+		displayOptions: {
+			show: {
+				resource: ['event'],
+				operation: ['upsertEvent'],
+			},
+		},
+		options: [
+			{ name: 'Event Title', value: 'Event_Title' },
+			{ name: 'Start DateTime', value: 'Start_DateTime' },
+			{ name: 'End DateTime', value: 'End_DateTime' },
+			{ name: 'Related To', value: 'Related_To' },
+		],
+		default: ['Event_Title', 'Start_DateTime'],
+		description: 'Fields to use for duplicate detection. If an event with matching values exists, it will be updated; otherwise, a new event will be created.',
 	},
 ];
