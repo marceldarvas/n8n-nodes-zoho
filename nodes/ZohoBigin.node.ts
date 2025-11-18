@@ -3068,6 +3068,31 @@ export class ZohoBigin implements INodeType {
 
 			return response.data?.[0]?.details || {};
 
+		} else if (operation === 'upsertProduct') {
+			const productName = context.getNodeParameter('productName', itemIndex) as string;
+			const duplicateCheckFields = context.getNodeParameter('duplicateCheckFields', itemIndex) as string[];
+			const additionalFields = context.getNodeParameter('additionalFields', itemIndex, {}) as IDataObject;
+
+			const productData: IDataObject = {
+				Product_Name: productName,
+				...additionalFields,
+			};
+
+			const body: IDataObject = {
+				data: [productData],
+				duplicate_check_fields: duplicateCheckFields,
+			};
+
+			const response = await zohoBiginApiRequest.call(
+				context,
+				'POST',
+				'/Products/upsert',
+				body,
+				{},
+			);
+
+			return response.data?.[0]?.details || {};
+
 		} else if (operation === 'searchProducts') {
 			const searchTerm = context.getNodeParameter('searchTerm', itemIndex) as string;
 			const searchField = context.getNodeParameter('searchField', itemIndex, 'Product_Name') as string;

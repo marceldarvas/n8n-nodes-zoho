@@ -16,6 +16,7 @@ export const productsOperations: INodeProperties[] = [
 			{ name: 'Create', value: 'createProduct', description: 'Create a product' },
 			{ name: 'Update', value: 'updateProduct', description: 'Update a product' },
 			{ name: 'Delete', value: 'deleteProduct', description: 'Delete a product' },
+			{ name: 'Upsert', value: 'upsertProduct', description: 'Create or update a product (idempotent)' },
 			{ name: 'Get Fields', value: 'getFields', description: 'Get metadata for product fields' },
 			{ name: 'Bulk Create', value: 'bulkCreateProducts', description: 'Create multiple products' },
 			{ name: 'Bulk Update', value: 'bulkUpdateProducts', description: 'Update multiple products' },
@@ -57,7 +58,7 @@ export const productsFields: INodeProperties[] = [
 		displayOptions: {
 			show: {
 				resource: ['product'],
-				operation: ['createProduct'],
+				operation: ['createProduct', 'upsertProduct'],
 			},
 		},
 		default: '',
@@ -74,7 +75,7 @@ export const productsFields: INodeProperties[] = [
 		displayOptions: {
 			show: {
 				resource: ['product'],
-				operation: ['createProduct', 'updateProduct'],
+				operation: ['createProduct', 'updateProduct', 'upsertProduct'],
 			},
 		},
 		options: [
@@ -220,6 +221,27 @@ export const productsFields: INodeProperties[] = [
 				],
 			},
 		],
+	},
+
+	// Upsert operation - Duplicate Check Fields
+	{
+		displayName: 'Duplicate Check Fields',
+		name: 'duplicateCheckFields',
+		type: 'multiOptions',
+		required: true,
+		displayOptions: {
+			show: {
+				resource: ['product'],
+				operation: ['upsertProduct'],
+			},
+		},
+		options: [
+			{ name: 'Product Name', value: 'Product_Name' },
+			{ name: 'Product Code', value: 'Product_Code' },
+			{ name: 'SKU', value: 'SKU' },
+		],
+		default: ['Product_Name'],
+		description: 'Fields to use for duplicate detection. If a product with matching values exists, it will be updated; otherwise, a new product will be created.',
 	},
 
 	// Bulk operations - Products Data (JSON)
