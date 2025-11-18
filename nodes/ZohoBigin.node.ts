@@ -1674,6 +1674,72 @@ export class ZohoBigin implements INodeType {
 
 			return response.data?.[0]?.details || {};
 
+		} else if (operation === 'upsertContact') {
+			const lastName = context.getNodeParameter('lastName', itemIndex) as string;
+			const duplicateCheckFields = context.getNodeParameter('duplicateCheckFields', itemIndex) as string[];
+			const additionalFields = context.getNodeParameter('additionalFields', itemIndex, {}) as IDataObject;
+			const gdprCompliance = context.getNodeParameter('gdprCompliance', itemIndex, {}) as IDataObject;
+
+			// Build contact data
+			const contactData: IDataObject = {
+				Last_Name: lastName,
+				...additionalFields,
+			};
+
+			// Build GDPR Data Processing Basis Details if provided
+			if (gdprCompliance.dataProcessingDetails) {
+				const gdprData = gdprCompliance.dataProcessingDetails as IDataObject;
+				const dataProcessingBasisDetails: IDataObject = {};
+
+				// Add Data Processing Basis
+				if (gdprData.Data_Processing_Basis) {
+					dataProcessingBasisDetails.Data_Processing_Basis = gdprData.Data_Processing_Basis;
+				}
+
+				// Add contact permissions
+				if (gdprData.Contact_Through_Email !== undefined) {
+					dataProcessingBasisDetails.Contact_Through_Email = gdprData.Contact_Through_Email;
+				}
+				if (gdprData.Contact_Through_Phone !== undefined) {
+					dataProcessingBasisDetails.Contact_Through_Phone = gdprData.Contact_Through_Phone;
+				}
+				if (gdprData.Contact_Through_Survey !== undefined) {
+					dataProcessingBasisDetails.Contact_Through_Survey = gdprData.Contact_Through_Survey;
+				}
+
+				// Add optional text fields
+				if (gdprData.Lawful_Reason) {
+					dataProcessingBasisDetails.Lawful_Reason = gdprData.Lawful_Reason;
+				}
+				if (gdprData.Consent_Remarks) {
+					dataProcessingBasisDetails.Consent_Remarks = gdprData.Consent_Remarks;
+				}
+				if (gdprData.Consent_Date) {
+					dataProcessingBasisDetails.Consent_Date = gdprData.Consent_Date;
+				}
+
+				// Add GDPR details to contact data if any fields were set
+				if (Object.keys(dataProcessingBasisDetails).length > 0) {
+					contactData.Data_Processing_Basis_Details = dataProcessingBasisDetails;
+				}
+			}
+
+			// Build request body with duplicate check fields
+			const body: IDataObject = {
+				data: [contactData],
+				duplicate_check_fields: duplicateCheckFields,
+			};
+
+			const response = await zohoBiginApiRequest.call(
+				context,
+				'POST',
+				'/Contacts/upsert',
+				body,
+				{},
+			);
+
+			return response.data?.[0]?.details || {};
+
 		} else if (operation === 'deleteContact') {
 			const contactId = context.getNodeParameter('contactId', itemIndex) as string;
 

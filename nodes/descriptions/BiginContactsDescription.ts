@@ -15,6 +15,7 @@ export const contactsOperations: INodeProperties[] = [
 			{ name: 'Get', value: 'getContact', description: 'Get a contact' },
 			{ name: 'Create', value: 'createContact', description: 'Create a contact' },
 			{ name: 'Update', value: 'updateContact', description: 'Update a contact' },
+			{ name: 'Upsert', value: 'upsertContact', description: 'Create or update a contact (idempotent)' },
 			{ name: 'Delete', value: 'deleteContact', description: 'Delete a contact' },
 			{ name: 'Search', value: 'searchContacts', description: 'Search contacts' },
 			{ name: 'Get Fields', value: 'getFields', description: 'Get metadata for contact fields' },
@@ -73,7 +74,7 @@ export const contactsFields: INodeProperties[] = [
 		description: 'Last name of the contact (required)',
 	},
 
-	// Create/Update - Additional Fields
+	// Create/Update/Upsert - Additional Fields
 	{
 		displayName: 'Additional Fields',
 		name: 'additionalFields',
@@ -83,7 +84,7 @@ export const contactsFields: INodeProperties[] = [
 		displayOptions: {
 			show: {
 				resource: ['contact'],
-				operation: ['createContact', 'updateContact'],
+				operation: ['createContact', 'updateContact', 'upsertContact'],
 			},
 		},
 		options: [
@@ -168,7 +169,7 @@ export const contactsFields: INodeProperties[] = [
 		displayOptions: {
 			show: {
 				resource: ['contact'],
-				operation: ['createContact', 'updateContact'],
+				operation: ['createContact', 'updateContact', 'upsertContact'],
 			},
 		},
 		options: [
@@ -226,7 +227,7 @@ export const contactsFields: INodeProperties[] = [
 		displayOptions: {
 			show: {
 				resource: ['contact'],
-				operation: ['createContact', 'updateContact'],
+				operation: ['createContact', 'updateContact', 'upsertContact'],
 			},
 		},
 		description: 'GDPR data processing basis details for this contact (EU compliance)',
@@ -293,6 +294,48 @@ export const contactsFields: INodeProperties[] = [
 				],
 			},
 		],
+	},
+
+	// ========================================
+	// Upsert Operation Parameters
+	// ========================================
+	// Upsert - Last Name (required)
+	{
+		displayName: 'Last Name',
+		name: 'lastName',
+		type: 'string',
+		required: true,
+		displayOptions: {
+			show: {
+				resource: ['contact'],
+				operation: ['upsertContact'],
+			},
+		},
+		default: '',
+		description: 'Last name of the contact (required for upsert)',
+	},
+
+	// Upsert - Duplicate Check Fields
+	{
+		displayName: 'Duplicate Check Fields',
+		name: 'duplicateCheckFields',
+		type: 'multiOptions',
+		required: true,
+		displayOptions: {
+			show: {
+				resource: ['contact'],
+				operation: ['upsertContact'],
+			},
+		},
+		options: [
+			{ name: 'Email', value: 'Email' },
+			{ name: 'Phone', value: 'Phone' },
+			{ name: 'Mobile', value: 'Mobile' },
+			{ name: 'Last Name', value: 'Last_Name' },
+			{ name: 'First Name + Last Name', value: 'First_Name,Last_Name' },
+		],
+		default: ['Email'],
+		description: 'Fields to use for duplicate detection. If a record with matching values exists, it will be updated; otherwise, a new record will be created.',
 	},
 
 	// Filters for list/search
