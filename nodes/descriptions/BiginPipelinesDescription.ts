@@ -16,6 +16,7 @@ export const pipelinesOperations: INodeProperties[] = [
 			{ name: 'Create', value: 'createPipeline', description: 'Create a pipeline record' },
 			{ name: 'Update', value: 'updatePipeline', description: 'Update a pipeline record' },
 			{ name: 'Delete', value: 'deletePipeline', description: 'Delete a pipeline record' },
+			{ name: 'Upsert', value: 'upsertPipeline', description: 'Create or update a pipeline (idempotent)' },
 			{ name: 'Search', value: 'searchPipelines', description: 'Search pipeline records' },
 			{ name: 'Get Fields', value: 'getFields', description: 'Get metadata for pipeline fields' },
 			{ name: 'Bulk Create', value: 'bulkCreatePipelines', description: 'Create multiple pipeline records' },
@@ -63,7 +64,7 @@ export const pipelinesFields: INodeProperties[] = [
 		displayOptions: {
 			show: {
 				resource: ['pipeline'],
-				operation: ['createPipeline'],
+				operation: ['createPipeline', 'upsertPipeline'],
 			},
 		},
 		default: '',
@@ -80,7 +81,7 @@ export const pipelinesFields: INodeProperties[] = [
 		displayOptions: {
 			show: {
 				resource: ['pipeline'],
-				operation: ['createPipeline', 'updatePipeline'],
+				operation: ['createPipeline', 'updatePipeline', 'upsertPipeline'],
 			},
 		},
 		options: [
@@ -261,6 +262,27 @@ export const pipelinesFields: INodeProperties[] = [
 			},
 		},
 		description: 'Search term to find in pipeline records',
+	},
+
+	// Upsert operation - Duplicate Check Fields
+	{
+		displayName: 'Duplicate Check Fields',
+		name: 'duplicateCheckFields',
+		type: 'multiOptions',
+		required: true,
+		displayOptions: {
+			show: {
+				resource: ['pipeline'],
+				operation: ['upsertPipeline'],
+			},
+		},
+		options: [
+			{ name: 'Deal Name', value: 'Deal_Name' },
+			{ name: 'Contact Name', value: 'Contact_Name' },
+			{ name: 'Account Name', value: 'Account_Name' },
+		],
+		default: ['Deal_Name'],
+		description: 'Fields to use for duplicate detection. If a pipeline with matching values exists, it will be updated; otherwise, a new pipeline will be created.',
 	},
 
 	// Bulk operations - Pipelines Data (JSON)
