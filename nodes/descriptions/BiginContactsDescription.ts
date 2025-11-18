@@ -216,6 +216,85 @@ export const contactsFields: INodeProperties[] = [
 		],
 	},
 
+	// GDPR Compliance - Data Processing Basis Details
+	{
+		displayName: 'GDPR Compliance',
+		name: 'gdprCompliance',
+		type: 'fixedCollection',
+		default: {},
+		placeholder: 'Add GDPR Data Processing Basis',
+		displayOptions: {
+			show: {
+				resource: ['contact'],
+				operation: ['createContact', 'updateContact'],
+			},
+		},
+		description: 'GDPR data processing basis details for this contact (EU compliance)',
+		options: [
+			{
+				displayName: 'Data Processing Details',
+				name: 'dataProcessingDetails',
+				values: [
+					{
+						displayName: 'Data Processing Basis',
+						name: 'Data_Processing_Basis',
+						type: 'options',
+						typeOptions: {
+							loadOptionsMethod: 'getDataProcessingBasisOptions',
+						},
+						default: '',
+						description: 'Legal basis for processing personal data (GDPR Article 6)',
+					},
+					{
+						displayName: 'Contact Through Email',
+						name: 'Contact_Through_Email',
+						type: 'boolean',
+						default: false,
+						description: 'Whether contact can be reached via email',
+					},
+					{
+						displayName: 'Contact Through Phone',
+						name: 'Contact_Through_Phone',
+						type: 'boolean',
+						default: false,
+						description: 'Whether contact can be reached via phone',
+					},
+					{
+						displayName: 'Contact Through Survey',
+						name: 'Contact_Through_Survey',
+						type: 'boolean',
+						default: false,
+						description: 'Whether contact can be reached via survey',
+					},
+					{
+						displayName: 'Lawful Reason',
+						name: 'Lawful_Reason',
+						type: 'string',
+						default: '',
+						description: 'Additional lawful reason for data processing',
+					},
+					{
+						displayName: 'Consent Remarks',
+						name: 'Consent_Remarks',
+						type: 'string',
+						typeOptions: {
+							rows: 3,
+						},
+						default: '',
+						description: 'Additional remarks about consent',
+					},
+					{
+						displayName: 'Consent Date',
+						name: 'Consent_Date',
+						type: 'dateTime',
+						default: '',
+						description: 'Date when consent was obtained (ISO 8601 format)',
+					},
+				],
+			},
+		],
+	},
+
 	// Filters for list/search
 	{
 		displayName: 'Filters',

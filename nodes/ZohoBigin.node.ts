@@ -1,7 +1,9 @@
 import type {
 	IDataObject,
 	IExecuteFunctions,
+	ILoadOptionsFunctions,
 	INodeExecutionData,
+	INodePropertyOptions,
 	INodeType,
 	INodeTypeDescription,
 } from 'n8n-workflow';
@@ -119,6 +121,92 @@ export class ZohoBigin implements INodeType {
 			...eventsFields,
 			...notesFields,
 		],
+	};
+
+	methods = {
+		loadOptions: {
+			/**
+			 * Load Data Processing Basis options from Bigin field metadata
+			 * Fetches picklist values for the GDPR Data_Processing_Basis field
+			 * Results are cached for 1 hour to minimize API calls
+			 */
+			async getDataProcessingBasisOptions(
+				this: ILoadOptionsFunctions,
+			): Promise<INodePropertyOptions[]> {
+				try {
+					// Use cached metadata to reduce API calls
+					const cacheKey = 'fields:Contacts:Data_Processing_Basis';
+
+					// Check cache first
+					const cached = ZohoBigin.metadataCache.get(cacheKey);
+					const now = Date.now();
+
+					if (cached && cached.expiry > now) {
+						return cached.data.options as INodePropertyOptions[];
+					}
+
+					// Fetch field metadata from Bigin API
+					const response = await zohoBiginApiRequest.call(
+						this,
+						'GET',
+						'/settings/fields?module=Contacts',
+						{},
+						{},
+					);
+
+					// Find the Data_Processing_Basis field
+					const fields = response.fields || [];
+					const dataProcessingField = fields.find(
+						(field: IDataObject) => field.api_name === 'Data_Processing_Basis',
+					);
+
+					if (!dataProcessingField) {
+						// Return default options if field not found
+						return [
+							{ name: 'Not Applicable', value: 'Not Applicable' },
+							{ name: 'Legitimate Interests', value: 'Legitimate Interests' },
+							{ name: 'Contract', value: 'Contract' },
+							{ name: 'Legal Obligation', value: 'Legal Obligation' },
+							{ name: 'Vital Interests', value: 'Vital Interests' },
+							{ name: 'Public Interests', value: 'Public Interests' },
+							{ name: 'Pending', value: 'Pending' },
+							{ name: 'Awaiting', value: 'Awaiting' },
+							{ name: 'Obtained', value: 'Obtained' },
+							{ name: 'Not Responded', value: 'Not Responded' },
+						];
+					}
+
+					// Extract picklist values
+					const pickListValues = (dataProcessingField.pick_list_values || []) as IDataObject[];
+					const options: INodePropertyOptions[] = pickListValues.map((item: IDataObject) => ({
+						name: item.display_value as string || item.actual_value as string,
+						value: item.actual_value as string,
+					}));
+
+					// Cache the options for 1 hour
+					ZohoBigin.metadataCache.set(cacheKey, {
+						data: { options },
+						expiry: now + (60 * 60 * 1000), // 1 hour
+					});
+
+					return options;
+				} catch (error) {
+					// Return default English options if API call fails
+					return [
+						{ name: 'Not Applicable', value: 'Not Applicable' },
+						{ name: 'Legitimate Interests', value: 'Legitimate Interests' },
+						{ name: 'Contract', value: 'Contract' },
+						{ name: 'Legal Obligation', value: 'Legal Obligation' },
+						{ name: 'Vital Interests', value: 'Vital Interests' },
+						{ name: 'Public Interests', value: 'Public Interests' },
+						{ name: 'Pending', value: 'Pending' },
+						{ name: 'Awaiting', value: 'Awaiting' },
+						{ name: 'Obtained', value: 'Obtained' },
+						{ name: 'Not Responded', value: 'Not Responded' },
+					];
+				}
+			},
+		},
 	};
 
 	/**
@@ -1346,14 +1434,54 @@ export class ZohoBigin implements INodeType {
 		} else if (operation === 'createContact') {
 			const lastName = context.getNodeParameter('lastName', itemIndex) as string;
 			const additionalFields = context.getNodeParameter('additionalFields', itemIndex, {}) as IDataObject;
+			const gdprCompliance = context.getNodeParameter('gdprCompliance', itemIndex, {}) as IDataObject;
+
+			// Build contact data
+			const contactData: IDataObject = {
+				Last_Name: lastName,
+				...additionalFields,
+			};
+
+			// Build GDPR Data Processing Basis Details if provided
+			if (gdprCompliance.dataProcessingDetails) {
+				const gdprData = gdprCompliance.dataProcessingDetails as IDataObject;
+				const dataProcessingBasisDetails: IDataObject = {};
+
+				// Add Data Processing Basis
+				if (gdprData.Data_Processing_Basis) {
+					dataProcessingBasisDetails.Data_Processing_Basis = gdprData.Data_Processing_Basis;
+				}
+
+				// Add contact permissions
+				if (gdprData.Contact_Through_Email !== undefined) {
+					dataProcessingBasisDetails.Contact_Through_Email = gdprData.Contact_Through_Email;
+				}
+				if (gdprData.Contact_Through_Phone !== undefined) {
+					dataProcessingBasisDetails.Contact_Through_Phone = gdprData.Contact_Through_Phone;
+				}
+				if (gdprData.Contact_Through_Survey !== undefined) {
+					dataProcessingBasisDetails.Contact_Through_Survey = gdprData.Contact_Through_Survey;
+				}
+
+				// Add optional text fields
+				if (gdprData.Lawful_Reason) {
+					dataProcessingBasisDetails.Lawful_Reason = gdprData.Lawful_Reason;
+				}
+				if (gdprData.Consent_Remarks) {
+					dataProcessingBasisDetails.Consent_Remarks = gdprData.Consent_Remarks;
+				}
+				if (gdprData.Consent_Date) {
+					dataProcessingBasisDetails.Consent_Date = gdprData.Consent_Date;
+				}
+
+				// Add GDPR details to contact data if any fields were set
+				if (Object.keys(dataProcessingBasisDetails).length > 0) {
+					contactData.Data_Processing_Basis_Details = dataProcessingBasisDetails;
+				}
+			}
 
 			const body = {
-				data: [
-					{
-						Last_Name: lastName,
-						...additionalFields,
-					},
-				],
+				data: [contactData],
 			};
 
 			const response = await zohoBiginApiRequest.call(
@@ -1368,15 +1496,55 @@ export class ZohoBigin implements INodeType {
 
 		} else if (operation === 'updateContact') {
 			const contactId = context.getNodeParameter('contactId', itemIndex) as string;
-			const updateFields = context.getNodeParameter('updateFields', itemIndex, {}) as IDataObject;
+			const additionalFields = context.getNodeParameter('additionalFields', itemIndex, {}) as IDataObject;
+			const gdprCompliance = context.getNodeParameter('gdprCompliance', itemIndex, {}) as IDataObject;
+
+			// Build contact data
+			const contactData: IDataObject = {
+				id: contactId,
+				...additionalFields,
+			};
+
+			// Build GDPR Data Processing Basis Details if provided
+			if (gdprCompliance.dataProcessingDetails) {
+				const gdprData = gdprCompliance.dataProcessingDetails as IDataObject;
+				const dataProcessingBasisDetails: IDataObject = {};
+
+				// Add Data Processing Basis
+				if (gdprData.Data_Processing_Basis) {
+					dataProcessingBasisDetails.Data_Processing_Basis = gdprData.Data_Processing_Basis;
+				}
+
+				// Add contact permissions
+				if (gdprData.Contact_Through_Email !== undefined) {
+					dataProcessingBasisDetails.Contact_Through_Email = gdprData.Contact_Through_Email;
+				}
+				if (gdprData.Contact_Through_Phone !== undefined) {
+					dataProcessingBasisDetails.Contact_Through_Phone = gdprData.Contact_Through_Phone;
+				}
+				if (gdprData.Contact_Through_Survey !== undefined) {
+					dataProcessingBasisDetails.Contact_Through_Survey = gdprData.Contact_Through_Survey;
+				}
+
+				// Add optional text fields
+				if (gdprData.Lawful_Reason) {
+					dataProcessingBasisDetails.Lawful_Reason = gdprData.Lawful_Reason;
+				}
+				if (gdprData.Consent_Remarks) {
+					dataProcessingBasisDetails.Consent_Remarks = gdprData.Consent_Remarks;
+				}
+				if (gdprData.Consent_Date) {
+					dataProcessingBasisDetails.Consent_Date = gdprData.Consent_Date;
+				}
+
+				// Add GDPR details to contact data if any fields were set
+				if (Object.keys(dataProcessingBasisDetails).length > 0) {
+					contactData.Data_Processing_Basis_Details = dataProcessingBasisDetails;
+				}
+			}
 
 			const body = {
-				data: [
-					{
-						id: contactId,
-						...updateFields,
-					},
-				],
+				data: [contactData],
 			};
 
 			const response = await zohoBiginApiRequest.call(
