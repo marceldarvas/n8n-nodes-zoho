@@ -17,6 +17,7 @@ export const accountsOperations: INodeProperties[] = [
 			{ name: 'Update', value: 'updateAccount', description: 'Update a company/account' },
 			{ name: 'Delete', value: 'deleteAccount', description: 'Delete a company/account' },
 			{ name: 'Search', value: 'searchAccounts', description: 'Search companies/accounts' },
+			{ name: 'Execute COQL Query', value: 'executeCOQL', description: 'Execute a COQL query for advanced filtering' },
 			{ name: 'Get Fields', value: 'getFields', description: 'Get metadata for account fields' },
 			{ name: 'Bulk Create', value: 'bulkCreateAccounts', description: 'Create multiple companies/accounts' },
 			{ name: 'Bulk Update', value: 'bulkUpdateAccounts', description: 'Update multiple companies/accounts' },
@@ -676,5 +677,25 @@ export const accountsFields: INodeProperties[] = [
 		default: '',
 		description: 'IDs of records to transfer (comma-separated for bulk, max 500)',
 		placeholder: '4876876000000624001, 4876876000000624002',
+	},
+
+	// COQL Query
+	{
+		displayName: 'COQL Query',
+		name: 'coqlQuery',
+		type: 'string',
+		typeOptions: {
+			rows: 4,
+		},
+		required: true,
+		displayOptions: {
+			show: {
+				resource: ['account'],
+				operation: ['executeCOQL'],
+			},
+		},
+		default: 'SELECT Account_Name, Industry, Annual_Revenue FROM Accounts WHERE Annual_Revenue > 100000 LIMIT 10',
+		description: 'SQL-like COQL query to execute. Use "Get Fields" operation first to discover available field names. Supports WHERE, ORDER BY, LIMIT (max 200 per call, 10000 total). Can join via lookup fields using dot notation. See <a href="https://www.bigin.com/developer/docs/apis/v2/coql-overview.html" target="_blank">COQL documentation</a>.',
+		placeholder: 'SELECT Account_Name, Industry, Website FROM Accounts WHERE Industry = \'Technology\' ORDER BY Account_Name',
 	},
 ];
