@@ -17,6 +17,7 @@ export const eventsOperations: INodeProperties[] = [
 			{ name: 'Update', value: 'updateEvent', description: 'Update an event' },
 			{ name: 'Delete', value: 'deleteEvent', description: 'Delete an event' },
 			{ name: 'Upsert', value: 'upsertEvent', description: 'Create or update an event (idempotent)' },
+			{ name: 'Get Deleted Records', value: 'getDeletedRecords', description: 'Get deleted events with metadata' },
 		],
 		default: 'listEvents',
 	},
@@ -246,5 +247,28 @@ export const eventsFields: INodeProperties[] = [
 		],
 		default: ['Event_Title', 'Start_DateTime'],
 		description: 'Fields to use for duplicate detection. If an event with matching values exists, it will be updated; otherwise, a new event will be created.',
+	},
+
+	// Get Deleted Records - Pagination
+	...paginationFields('event', 'getDeletedRecords'),
+
+	// Get Deleted Records - Deletion Type
+	{
+		displayName: 'Deletion Type',
+		name: 'deletionType',
+		type: 'options',
+		displayOptions: {
+			show: {
+				resource: ['event'],
+				operation: ['getDeletedRecords'],
+			},
+		},
+		options: [
+			{ name: 'All', value: 'all', description: 'All deleted records' },
+			{ name: 'Recycle Bin', value: 'recycle', description: 'Records in recycle bin (recoverable)' },
+			{ name: 'Permanent', value: 'permanent', description: 'Permanently deleted records' },
+		],
+		default: 'all',
+		description: 'Type of deleted records to retrieve',
 	},
 ];
