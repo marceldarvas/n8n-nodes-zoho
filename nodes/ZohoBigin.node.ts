@@ -265,6 +265,21 @@ export class ZohoBigin implements INodeType {
 						json: item,
 						pairedItem: { item: i }, // All array elements reference the same input item
 					})));
+				} else if ((responseData as IDataObject).binary) {
+					// Handle binary data downloads (attachments, photos)
+					const binaryPropertyName = this.getNodeParameter('binaryProperty', i, 'data') as string;
+					const binaryDataBuffer = (responseData as IDataObject).binary as Buffer;
+
+					returnData.push({
+						json: {},
+						binary: {
+							[binaryPropertyName]: await this.helpers.prepareBinaryData(
+								binaryDataBuffer,
+								'downloaded_file',
+							),
+						},
+						pairedItem: { item: i },
+					});
 				} else {
 					returnData.push({
 						json: responseData,
@@ -991,6 +1006,226 @@ export class ZohoBigin implements INodeType {
 			});
 
 			return result.fields as IDataObject[];
+		} else if (operation === 'getRelatedRecords') {
+			const recordId = context.getNodeParameter('recordId', itemIndex) as string;
+			const relatedModule = context.getNodeParameter('relatedModule', itemIndex) as string;
+			const returnAll = context.getNodeParameter('returnAll', itemIndex, false) as boolean;
+
+			if (returnAll) {
+				return await ZohoBigin.fetchAllPages(
+					context,
+					`/Pipelines/${recordId}/${relatedModule}`,
+				);
+			}
+
+			const limit = context.getNodeParameter('limit', itemIndex, 50) as number;
+			const response = await zohoBiginApiRequest.call(
+				context,
+				'GET',
+				`/Pipelines/${recordId}/${relatedModule}`,
+				{},
+				{ page: 1, per_page: limit },
+			);
+
+			return response.data || [];
+
+		} else if (operation === 'updateRelatedRecords') {
+			const recordId = context.getNodeParameter('recordId', itemIndex) as string;
+			const relatedModule = context.getNodeParameter('relatedModule', itemIndex) as string;
+			const relatedRecordsDataRaw = context.getNodeParameter('relatedRecordsData', itemIndex) as string;
+
+			let relatedRecordsData: IDataObject[];
+			try {
+				relatedRecordsData = JSON.parse(relatedRecordsDataRaw) as IDataObject[];
+			} catch (error) {
+				throw new NodeOperationError(
+					context.getNode(),
+					`Invalid JSON in Related Records Data: ${(error as Error).message}`,
+				);
+			}
+
+			if (!Array.isArray(relatedRecordsData) || relatedRecordsData.length === 0) {
+				throw new NodeOperationError(
+					context.getNode(),
+					'Related Records Data must be a non-empty array',
+				);
+			}
+
+			const body = { data: relatedRecordsData };
+
+			const response = await zohoBiginApiRequest.call(
+				context,
+				'PUT',
+				`/Pipelines/${recordId}/${relatedModule}`,
+				body,
+				{},
+			);
+
+			return response.data || [];
+
+		} else if (operation === 'delinkRelatedRecord') {
+			const recordId = context.getNodeParameter('recordId', itemIndex) as string;
+			const relatedModule = context.getNodeParameter('relatedModule', itemIndex) as string;
+			const relatedRecordId = context.getNodeParameter('relatedRecordId', itemIndex) as string;
+
+			const response = await zohoBiginApiRequest.call(
+				context,
+				'DELETE',
+				`/Pipelines/${recordId}/${relatedModule}/${relatedRecordId}`,
+				{},
+				{},
+			);
+
+			return response.data || {};
+
+		} else if (operation === 'sendEmail') {
+			const recordId = context.getNodeParameter('recordId', itemIndex) as string;
+			const fromEmail = context.getNodeParameter('fromEmail', itemIndex) as string;
+			const fromName = context.getNodeParameter('fromName', itemIndex) as string;
+			const toEmailsRaw = context.getNodeParameter('toEmails', itemIndex) as string;
+			const subject = context.getNodeParameter('subject', itemIndex) as string;
+			const content = context.getNodeParameter('content', itemIndex) as string;
+			const emailOptions = context.getNodeParameter('emailOptions', itemIndex, {}) as IDataObject;
+
+			// Parse comma-separated email addresses
+			const toEmails = toEmailsRaw.split(',').map(email => email.trim()).filter(email => email);
+
+			const body: IDataObject = {
+				from: {
+					user_name: fromName,
+					email: fromEmail,
+				},
+				to: toEmails.map(email => ({
+					email,
+				})),
+				subject,
+				content,
+				mail_format: emailOptions.mail_format || 'html',
+				org_email: emailOptions.org_email || false,
+			};
+
+			// Add optional CC and BCC if provided
+			if (emailOptions.cc && typeof emailOptions.cc === 'string' && emailOptions.cc.trim()) {
+				const ccEmails = (emailOptions.cc as string).split(',').map(email => email.trim()).filter(email => email);
+				body.cc = ccEmails.map(email => ({ email }));
+			}
+
+			if (emailOptions.bcc && typeof emailOptions.bcc === 'string' && emailOptions.bcc.trim()) {
+				const bccEmails = (emailOptions.bcc as string).split(',').map(email => email.trim()).filter(email => email);
+				body.bcc = bccEmails.map(email => ({ email }));
+			}
+
+			const response = await zohoBiginApiRequest.call(
+				context,
+				'POST',
+				`/Pipelines/${recordId}/actions/send_mail`,
+				body,
+				{},
+			);
+
+			return response.data || {};
+
+		} else if (operation === 'listAttachments') {
+			const recordId = context.getNodeParameter('recordId', itemIndex) as string;
+
+			const response = await zohoBiginApiRequest.call(
+				context,
+				'GET',
+				`/Pipelines/${recordId}/Attachments`,
+				{},
+				{},
+			);
+
+			return response.data || [];
+
+		} else if (operation === 'uploadAttachment') {
+			const recordId = context.getNodeParameter('recordId', itemIndex) as string;
+			const binaryPropertyName = context.getNodeParameter('binaryPropertyName', itemIndex, 'data') as string;
+
+			const binaryData = context.helpers.assertBinaryData(itemIndex, binaryPropertyName);
+			const fileBuffer = await context.helpers.getBinaryDataBuffer(itemIndex, binaryPropertyName);
+
+			// Zoho Bigin expects multipart/form-data for file uploads
+			const formData: IDataObject = {
+				file: {
+					value: fileBuffer,
+					options: {
+						filename: binaryData.fileName || 'file',
+						contentType: binaryData.mimeType,
+					},
+				},
+			};
+
+			const response = await zohoBiginApiRequest.call(
+				context,
+				'POST',
+				`/Pipelines/${recordId}/Attachments`,
+				{},
+				{},
+				undefined,
+				{ formData },
+			);
+
+			return response.data || {};
+
+		} else if (operation === 'downloadAttachment') {
+			const recordId = context.getNodeParameter('recordId', itemIndex) as string;
+			const attachmentId = context.getNodeParameter('attachmentId', itemIndex) as string;
+
+			const response = await zohoBiginApiRequest.call(
+				context,
+				'GET',
+				`/Pipelines/${recordId}/Attachments/${attachmentId}`,
+				{},
+				{},
+				undefined,
+				{ encoding: null, json: false },
+			);
+
+			return { binary: response };
+
+		} else if (operation === 'deleteAttachment') {
+			const recordId = context.getNodeParameter('recordId', itemIndex) as string;
+			const attachmentId = context.getNodeParameter('attachmentId', itemIndex) as string;
+
+			const response = await zohoBiginApiRequest.call(
+				context,
+				'DELETE',
+				`/Pipelines/${recordId}/Attachments/${attachmentId}`,
+				{},
+				{},
+			);
+
+			return response.data || {};
+
+		} else if (operation === 'changeOwner') {
+			const newOwnerId = context.getNodeParameter('newOwnerId', itemIndex) as string;
+			const recordIdsRaw = context.getNodeParameter('recordIds', itemIndex) as string;
+
+			// Parse comma-separated IDs
+			const recordIds = recordIdsRaw.split(',').map(id => id.trim()).filter(id => id);
+
+			if (recordIds.length === 0) {
+				throw new NodeOperationError(
+					context.getNode(),
+					'At least one record ID must be provided',
+				);
+			}
+
+			const body = {
+				owner: newOwnerId,
+				ids: recordIds,
+			};
+
+			const response = await zohoBiginApiRequest.call(
+				context,
+				'POST',
+				'/Pipelines/actions/change_owner',
+				body,
+				{},
+			);
+
+			return response.data || [];
 		}
 
 		throw new NodeOperationError(
@@ -1346,6 +1581,284 @@ export class ZohoBigin implements INodeType {
 			});
 
 			return result.fields as IDataObject[];
+
+		} else if (operation === 'getRelatedRecords') {
+			const recordId = context.getNodeParameter('recordId', itemIndex) as string;
+			const relatedModule = context.getNodeParameter('relatedModule', itemIndex) as string;
+			const returnAll = context.getNodeParameter('returnAll', itemIndex, false) as boolean;
+
+			if (returnAll) {
+				return await ZohoBigin.fetchAllPages(
+					context,
+					`/Contacts/${recordId}/${relatedModule}`,
+				);
+			}
+
+			const limit = context.getNodeParameter('limit', itemIndex, 50) as number;
+			const response = await zohoBiginApiRequest.call(
+				context,
+				'GET',
+				`/Contacts/${recordId}/${relatedModule}`,
+				{},
+				{ page: 1, per_page: limit },
+			);
+
+			return response.data || [];
+
+		} else if (operation === 'updateRelatedRecords') {
+			const recordId = context.getNodeParameter('recordId', itemIndex) as string;
+			const relatedModule = context.getNodeParameter('relatedModule', itemIndex) as string;
+			const relatedRecordsDataRaw = context.getNodeParameter('relatedRecordsData', itemIndex) as string;
+
+			let relatedRecordsData: IDataObject[];
+			try {
+				relatedRecordsData = JSON.parse(relatedRecordsDataRaw) as IDataObject[];
+			} catch (error) {
+				throw new NodeOperationError(
+					context.getNode(),
+					`Invalid JSON in Related Records Data: ${(error as Error).message}`,
+				);
+			}
+
+			if (!Array.isArray(relatedRecordsData) || relatedRecordsData.length === 0) {
+				throw new NodeOperationError(
+					context.getNode(),
+					'Related Records Data must be a non-empty array',
+				);
+			}
+
+			const body = { data: relatedRecordsData };
+
+			const response = await zohoBiginApiRequest.call(
+				context,
+				'PUT',
+				`/Contacts/${recordId}/${relatedModule}`,
+				body,
+				{},
+			);
+
+			return response.data || [];
+
+		} else if (operation === 'delinkRelatedRecord') {
+			const recordId = context.getNodeParameter('recordId', itemIndex) as string;
+			const relatedModule = context.getNodeParameter('relatedModule', itemIndex) as string;
+			const relatedRecordId = context.getNodeParameter('relatedRecordId', itemIndex) as string;
+
+			const response = await zohoBiginApiRequest.call(
+				context,
+				'DELETE',
+				`/Contacts/${recordId}/${relatedModule}/${relatedRecordId}`,
+				{},
+				{},
+			);
+
+			return response.data || {};
+
+		} else if (operation === 'sendEmail') {
+			const recordId = context.getNodeParameter('recordId', itemIndex) as string;
+			const fromEmail = context.getNodeParameter('fromEmail', itemIndex) as string;
+			const fromName = context.getNodeParameter('fromName', itemIndex) as string;
+			const toEmailsRaw = context.getNodeParameter('toEmails', itemIndex) as string;
+			const subject = context.getNodeParameter('subject', itemIndex) as string;
+			const content = context.getNodeParameter('content', itemIndex) as string;
+			const emailOptions = context.getNodeParameter('emailOptions', itemIndex, {}) as IDataObject;
+
+			// Parse comma-separated email addresses
+			const toEmails = toEmailsRaw.split(',').map(email => email.trim()).filter(email => email);
+
+			const body: IDataObject = {
+				from: {
+					user_name: fromName,
+					email: fromEmail,
+				},
+				to: toEmails.map(email => ({
+					email,
+				})),
+				subject,
+				content,
+				mail_format: emailOptions.mail_format || 'html',
+				org_email: emailOptions.org_email || false,
+			};
+
+			// Add optional CC and BCC if provided
+			if (emailOptions.cc && typeof emailOptions.cc === 'string' && emailOptions.cc.trim()) {
+				const ccEmails = (emailOptions.cc as string).split(',').map(email => email.trim()).filter(email => email);
+				body.cc = ccEmails.map(email => ({ email }));
+			}
+
+			if (emailOptions.bcc && typeof emailOptions.bcc === 'string' && emailOptions.bcc.trim()) {
+				const bccEmails = (emailOptions.bcc as string).split(',').map(email => email.trim()).filter(email => email);
+				body.bcc = bccEmails.map(email => ({ email }));
+			}
+
+			const response = await zohoBiginApiRequest.call(
+				context,
+				'POST',
+				`/Contacts/${recordId}/actions/send_mail`,
+				body,
+				{},
+			);
+
+			return response.data || {};
+
+		} else if (operation === 'listAttachments') {
+			const recordId = context.getNodeParameter('recordId', itemIndex) as string;
+
+			const response = await zohoBiginApiRequest.call(
+				context,
+				'GET',
+				`/Contacts/${recordId}/Attachments`,
+				{},
+				{},
+			);
+
+			return response.data || [];
+
+		} else if (operation === 'uploadAttachment') {
+			const recordId = context.getNodeParameter('recordId', itemIndex) as string;
+			const binaryPropertyName = context.getNodeParameter('binaryPropertyName', itemIndex, 'data') as string;
+
+			const binaryData = context.helpers.assertBinaryData(itemIndex, binaryPropertyName);
+			const fileBuffer = await context.helpers.getBinaryDataBuffer(itemIndex, binaryPropertyName);
+
+			// Zoho Bigin expects multipart/form-data for file uploads
+			const formData: IDataObject = {
+				file: {
+					value: fileBuffer,
+					options: {
+						filename: binaryData.fileName || 'file',
+						contentType: binaryData.mimeType,
+					},
+				},
+			};
+
+			const response = await zohoBiginApiRequest.call(
+				context,
+				'POST',
+				`/Contacts/${recordId}/Attachments`,
+				{},
+				{},
+				undefined,
+				{ formData },
+			);
+
+			return response.data || {};
+
+		} else if (operation === 'downloadAttachment') {
+			const recordId = context.getNodeParameter('recordId', itemIndex) as string;
+			const attachmentId = context.getNodeParameter('attachmentId', itemIndex) as string;
+
+			const response = await zohoBiginApiRequest.call(
+				context,
+				'GET',
+				`/Contacts/${recordId}/Attachments/${attachmentId}`,
+				{},
+				{},
+				undefined,
+				{ encoding: null, json: false },
+			);
+
+			return { binary: response };
+
+		} else if (operation === 'deleteAttachment') {
+			const recordId = context.getNodeParameter('recordId', itemIndex) as string;
+			const attachmentId = context.getNodeParameter('attachmentId', itemIndex) as string;
+
+			const response = await zohoBiginApiRequest.call(
+				context,
+				'DELETE',
+				`/Contacts/${recordId}/Attachments/${attachmentId}`,
+				{},
+				{},
+			);
+
+			return response.data || {};
+
+		} else if (operation === 'uploadPhoto') {
+			const recordId = context.getNodeParameter('recordId', itemIndex) as string;
+			const binaryPropertyName = context.getNodeParameter('binaryPropertyName', itemIndex, 'data') as string;
+
+			const binaryData = context.helpers.assertBinaryData(itemIndex, binaryPropertyName);
+			const fileBuffer = await context.helpers.getBinaryDataBuffer(itemIndex, binaryPropertyName);
+
+			const formData: IDataObject = {
+				file: {
+					value: fileBuffer,
+					options: {
+						filename: binaryData.fileName || 'photo',
+						contentType: binaryData.mimeType,
+					},
+				},
+			};
+
+			const response = await zohoBiginApiRequest.call(
+				context,
+				'POST',
+				`/Contacts/${recordId}/photo`,
+				{},
+				{},
+				undefined,
+				{ formData },
+			);
+
+			return response.data || {};
+
+		} else if (operation === 'downloadPhoto') {
+			const recordId = context.getNodeParameter('recordId', itemIndex) as string;
+
+			const response = await zohoBiginApiRequest.call(
+				context,
+				'GET',
+				`/Contacts/${recordId}/photo`,
+				{},
+				{},
+				undefined,
+				{ encoding: null, json: false },
+			);
+
+			return { binary: response };
+
+		} else if (operation === 'deletePhoto') {
+			const recordId = context.getNodeParameter('recordId', itemIndex) as string;
+
+			const response = await zohoBiginApiRequest.call(
+				context,
+				'DELETE',
+				`/Contacts/${recordId}/photo`,
+				{},
+				{},
+			);
+
+			return response.data || {};
+
+		} else if (operation === 'changeOwner') {
+			const newOwnerId = context.getNodeParameter('newOwnerId', itemIndex) as string;
+			const recordIdsRaw = context.getNodeParameter('recordIds', itemIndex) as string;
+
+			// Parse comma-separated IDs
+			const recordIds = recordIdsRaw.split(',').map(id => id.trim()).filter(id => id);
+
+			if (recordIds.length === 0) {
+				throw new NodeOperationError(
+					context.getNode(),
+					'At least one record ID must be provided',
+				);
+			}
+
+			const body = {
+				owner: newOwnerId,
+				ids: recordIds,
+			};
+
+			const response = await zohoBiginApiRequest.call(
+				context,
+				'POST',
+				'/Contacts/actions/change_owner',
+				body,
+				{},
+			);
+
+			return response.data || [];
 		}
 
 		throw new NodeOperationError(
@@ -1701,6 +2214,283 @@ export class ZohoBigin implements INodeType {
 			});
 
 			return result.fields as IDataObject[];
+		} else if (operation === 'getRelatedRecords') {
+			const recordId = context.getNodeParameter('recordId', itemIndex) as string;
+			const relatedModule = context.getNodeParameter('relatedModule', itemIndex) as string;
+			const returnAll = context.getNodeParameter('returnAll', itemIndex, false) as boolean;
+
+			if (returnAll) {
+				return await ZohoBigin.fetchAllPages(
+					context,
+					`/Accounts/${recordId}/${relatedModule}`,
+				);
+			}
+
+			const limit = context.getNodeParameter('limit', itemIndex, 50) as number;
+			const response = await zohoBiginApiRequest.call(
+				context,
+				'GET',
+				`/Accounts/${recordId}/${relatedModule}`,
+				{},
+				{ page: 1, per_page: limit },
+			);
+
+			return response.data || [];
+
+		} else if (operation === 'updateRelatedRecords') {
+			const recordId = context.getNodeParameter('recordId', itemIndex) as string;
+			const relatedModule = context.getNodeParameter('relatedModule', itemIndex) as string;
+			const relatedRecordsDataRaw = context.getNodeParameter('relatedRecordsData', itemIndex) as string;
+
+			let relatedRecordsData: IDataObject[];
+			try {
+				relatedRecordsData = JSON.parse(relatedRecordsDataRaw) as IDataObject[];
+			} catch (error) {
+				throw new NodeOperationError(
+					context.getNode(),
+					`Invalid JSON in Related Records Data: ${(error as Error).message}`,
+				);
+			}
+
+			if (!Array.isArray(relatedRecordsData) || relatedRecordsData.length === 0) {
+				throw new NodeOperationError(
+					context.getNode(),
+					'Related Records Data must be a non-empty array',
+				);
+			}
+
+			const body = { data: relatedRecordsData };
+
+			const response = await zohoBiginApiRequest.call(
+				context,
+				'PUT',
+				`/Accounts/${recordId}/${relatedModule}`,
+				body,
+				{},
+			);
+
+			return response.data || [];
+
+		} else if (operation === 'delinkRelatedRecord') {
+			const recordId = context.getNodeParameter('recordId', itemIndex) as string;
+			const relatedModule = context.getNodeParameter('relatedModule', itemIndex) as string;
+			const relatedRecordId = context.getNodeParameter('relatedRecordId', itemIndex) as string;
+
+			const response = await zohoBiginApiRequest.call(
+				context,
+				'DELETE',
+				`/Accounts/${recordId}/${relatedModule}/${relatedRecordId}`,
+				{},
+				{},
+			);
+
+			return response.data || {};
+
+		} else if (operation === 'sendEmail') {
+			const recordId = context.getNodeParameter('recordId', itemIndex) as string;
+			const fromEmail = context.getNodeParameter('fromEmail', itemIndex) as string;
+			const fromName = context.getNodeParameter('fromName', itemIndex) as string;
+			const toEmailsRaw = context.getNodeParameter('toEmails', itemIndex) as string;
+			const subject = context.getNodeParameter('subject', itemIndex) as string;
+			const content = context.getNodeParameter('content', itemIndex) as string;
+			const emailOptions = context.getNodeParameter('emailOptions', itemIndex, {}) as IDataObject;
+
+			// Parse comma-separated email addresses
+			const toEmails = toEmailsRaw.split(',').map(email => email.trim()).filter(email => email);
+
+			const body: IDataObject = {
+				from: {
+					user_name: fromName,
+					email: fromEmail,
+				},
+				to: toEmails.map(email => ({
+					email,
+				})),
+				subject,
+				content,
+				mail_format: emailOptions.mail_format || 'html',
+				org_email: emailOptions.org_email || false,
+			};
+
+			// Add optional CC and BCC if provided
+			if (emailOptions.cc && typeof emailOptions.cc === 'string' && emailOptions.cc.trim()) {
+				const ccEmails = (emailOptions.cc as string).split(',').map(email => email.trim()).filter(email => email);
+				body.cc = ccEmails.map(email => ({ email }));
+			}
+
+			if (emailOptions.bcc && typeof emailOptions.bcc === 'string' && emailOptions.bcc.trim()) {
+				const bccEmails = (emailOptions.bcc as string).split(',').map(email => email.trim()).filter(email => email);
+				body.bcc = bccEmails.map(email => ({ email }));
+			}
+
+			const response = await zohoBiginApiRequest.call(
+				context,
+				'POST',
+				`/Accounts/${recordId}/actions/send_mail`,
+				body,
+				{},
+			);
+
+			return response.data || {};
+
+		} else if (operation === 'listAttachments') {
+			const recordId = context.getNodeParameter('recordId', itemIndex) as string;
+
+			const response = await zohoBiginApiRequest.call(
+				context,
+				'GET',
+				`/Accounts/${recordId}/Attachments`,
+				{},
+				{},
+			);
+
+			return response.data || [];
+
+		} else if (operation === 'uploadAttachment') {
+			const recordId = context.getNodeParameter('recordId', itemIndex) as string;
+			const binaryPropertyName = context.getNodeParameter('binaryPropertyName', itemIndex, 'data') as string;
+
+			const binaryData = context.helpers.assertBinaryData(itemIndex, binaryPropertyName);
+			const fileBuffer = await context.helpers.getBinaryDataBuffer(itemIndex, binaryPropertyName);
+
+			// Zoho Bigin expects multipart/form-data for file uploads
+			const formData: IDataObject = {
+				file: {
+					value: fileBuffer,
+					options: {
+						filename: binaryData.fileName || 'file',
+						contentType: binaryData.mimeType,
+					},
+				},
+			};
+
+			const response = await zohoBiginApiRequest.call(
+				context,
+				'POST',
+				`/Accounts/${recordId}/Attachments`,
+				{},
+				{},
+				undefined,
+				{ formData },
+			);
+
+			return response.data || {};
+
+		} else if (operation === 'downloadAttachment') {
+			const recordId = context.getNodeParameter('recordId', itemIndex) as string;
+			const attachmentId = context.getNodeParameter('attachmentId', itemIndex) as string;
+
+			const response = await zohoBiginApiRequest.call(
+				context,
+				'GET',
+				`/Accounts/${recordId}/Attachments/${attachmentId}`,
+				{},
+				{},
+				undefined,
+				{ encoding: null, json: false },
+			);
+
+			return { binary: response };
+
+		} else if (operation === 'deleteAttachment') {
+			const recordId = context.getNodeParameter('recordId', itemIndex) as string;
+			const attachmentId = context.getNodeParameter('attachmentId', itemIndex) as string;
+
+			const response = await zohoBiginApiRequest.call(
+				context,
+				'DELETE',
+				`/Accounts/${recordId}/Attachments/${attachmentId}`,
+				{},
+				{},
+			);
+
+			return response.data || {};
+
+		} else if (operation === 'uploadPhoto') {
+			const recordId = context.getNodeParameter('recordId', itemIndex) as string;
+			const binaryPropertyName = context.getNodeParameter('binaryPropertyName', itemIndex, 'data') as string;
+
+			const binaryData = context.helpers.assertBinaryData(itemIndex, binaryPropertyName);
+			const fileBuffer = await context.helpers.getBinaryDataBuffer(itemIndex, binaryPropertyName);
+
+			const formData: IDataObject = {
+				file: {
+					value: fileBuffer,
+					options: {
+						filename: binaryData.fileName || 'photo',
+						contentType: binaryData.mimeType,
+					},
+				},
+			};
+
+			const response = await zohoBiginApiRequest.call(
+				context,
+				'POST',
+				`/Accounts/${recordId}/photo`,
+				{},
+				{},
+				undefined,
+				{ formData },
+			);
+
+			return response.data || {};
+
+		} else if (operation === 'downloadPhoto') {
+			const recordId = context.getNodeParameter('recordId', itemIndex) as string;
+
+			const response = await zohoBiginApiRequest.call(
+				context,
+				'GET',
+				`/Accounts/${recordId}/photo`,
+				{},
+				{},
+				undefined,
+				{ encoding: null, json: false },
+			);
+
+			return { binary: response };
+
+		} else if (operation === 'deletePhoto') {
+			const recordId = context.getNodeParameter('recordId', itemIndex) as string;
+
+			const response = await zohoBiginApiRequest.call(
+				context,
+				'DELETE',
+				`/Accounts/${recordId}/photo`,
+				{},
+				{},
+			);
+
+			return response.data || {};
+
+		} else if (operation === 'changeOwner') {
+			const newOwnerId = context.getNodeParameter('newOwnerId', itemIndex) as string;
+			const recordIdsRaw = context.getNodeParameter('recordIds', itemIndex) as string;
+
+			// Parse comma-separated IDs
+			const recordIds = recordIdsRaw.split(',').map(id => id.trim()).filter(id => id);
+
+			if (recordIds.length === 0) {
+				throw new NodeOperationError(
+					context.getNode(),
+					'At least one record ID must be provided',
+				);
+			}
+
+			const body = {
+				owner: newOwnerId,
+				ids: recordIds,
+			};
+
+			const response = await zohoBiginApiRequest.call(
+				context,
+				'POST',
+				'/Accounts/actions/change_owner',
+				body,
+				{},
+			);
+
+			return response.data || [];
 		}
 
 		throw new NodeOperationError(
@@ -2038,6 +2828,91 @@ export class ZohoBigin implements INodeType {
 			});
 
 			return result.fields as IDataObject[];
+		} else if (operation === 'uploadPhoto') {
+			const recordId = context.getNodeParameter('recordId', itemIndex) as string;
+			const binaryPropertyName = context.getNodeParameter('binaryPropertyName', itemIndex, 'data') as string;
+
+			const binaryData = context.helpers.assertBinaryData(itemIndex, binaryPropertyName);
+			const fileBuffer = await context.helpers.getBinaryDataBuffer(itemIndex, binaryPropertyName);
+
+			const formData: IDataObject = {
+				file: {
+					value: fileBuffer,
+					options: {
+						filename: binaryData.fileName || 'photo',
+						contentType: binaryData.mimeType,
+					},
+				},
+			};
+
+			const response = await zohoBiginApiRequest.call(
+				context,
+				'POST',
+				`/Products/${recordId}/photo`,
+				{},
+				{},
+				undefined,
+				{ formData },
+			);
+
+			return response.data || {};
+
+		} else if (operation === 'downloadPhoto') {
+			const recordId = context.getNodeParameter('recordId', itemIndex) as string;
+
+			const response = await zohoBiginApiRequest.call(
+				context,
+				'GET',
+				`/Products/${recordId}/photo`,
+				{},
+				{},
+				undefined,
+				{ encoding: null, json: false },
+			);
+
+			return { binary: response };
+
+		} else if (operation === 'deletePhoto') {
+			const recordId = context.getNodeParameter('recordId', itemIndex) as string;
+
+			const response = await zohoBiginApiRequest.call(
+				context,
+				'DELETE',
+				`/Products/${recordId}/photo`,
+				{},
+				{},
+			);
+
+			return response.data || {};
+
+		} else if (operation === 'changeOwner') {
+			const newOwnerId = context.getNodeParameter('newOwnerId', itemIndex) as string;
+			const recordIdsRaw = context.getNodeParameter('recordIds', itemIndex) as string;
+
+			// Parse comma-separated IDs
+			const recordIds = recordIdsRaw.split(',').map(id => id.trim()).filter(id => id);
+
+			if (recordIds.length === 0) {
+				throw new NodeOperationError(
+					context.getNode(),
+					'At least one record ID must be provided',
+				);
+			}
+
+			const body = {
+				owner: newOwnerId,
+				ids: recordIds,
+			};
+
+			const response = await zohoBiginApiRequest.call(
+				context,
+				'POST',
+				'/Products/actions/change_owner',
+				body,
+				{},
+			);
+
+			return response.data || [];
 		}
 
 		throw new NodeOperationError(

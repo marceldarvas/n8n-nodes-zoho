@@ -19,6 +19,10 @@ export const productsOperations: INodeProperties[] = [
 			{ name: 'Get Fields', value: 'getFields', description: 'Get metadata for product fields' },
 			{ name: 'Bulk Create', value: 'bulkCreateProducts', description: 'Create multiple products' },
 			{ name: 'Bulk Update', value: 'bulkUpdateProducts', description: 'Update multiple products' },
+			{ name: 'Upload Photo', value: 'uploadPhoto', description: 'Upload a product photo' },
+			{ name: 'Download Photo', value: 'downloadPhoto', description: 'Download product photo' },
+			{ name: 'Delete Photo', value: 'deletePhoto', description: 'Delete product photo' },
+			{ name: 'Change Owner', value: 'changeOwner', description: 'Transfer record ownership' },
 		],
 		default: 'listProducts',
 	},
@@ -233,5 +237,85 @@ export const productsFields: INodeProperties[] = [
 		},
 		description: 'Array of product objects (max 100)',
 		placeholder: '[{"Product_Name": "Product 1", "Unit_Price": 99.99}, {"Product_Name": "Product 2", "Unit_Price": 149.99}]',
+	},
+
+	// ========================================
+	// Photo Operations
+	// ========================================
+	{
+		displayName: 'Product ID',
+		name: 'recordId',
+		type: 'string',
+		required: true,
+		displayOptions: {
+			show: {
+				resource: ['product'],
+				operation: ['uploadPhoto', 'downloadPhoto', 'deletePhoto'],
+			},
+		},
+		default: '',
+		description: 'ID of the product record',
+	},
+	{
+		displayName: 'Input Binary Field',
+		name: 'binaryPropertyName',
+		type: 'string',
+		required: true,
+		default: 'data',
+		displayOptions: {
+			show: {
+				resource: ['product'],
+				operation: ['uploadPhoto'],
+			},
+		},
+		description: 'Name of the binary property containing the file to upload',
+	},
+	{
+		displayName: 'Put Output in Field',
+		name: 'binaryProperty',
+		type: 'string',
+		required: true,
+		default: 'data',
+		displayOptions: {
+			show: {
+				resource: ['product'],
+				operation: ['downloadPhoto'],
+			},
+		},
+		description: 'Name of the binary property to store downloaded file',
+	},
+
+	// ========================================
+	// Change Owner Operation
+	// ========================================
+	{
+		displayName: 'New Owner ID',
+		name: 'newOwnerId',
+		type: 'string',
+		required: true,
+		displayOptions: {
+			show: {
+				resource: ['product'],
+				operation: ['changeOwner'],
+			},
+		},
+		default: '',
+		description: 'User ID of the new owner',
+		placeholder: '4876876000000225001',
+	},
+	{
+		displayName: 'Record IDs',
+		name: 'recordIds',
+		type: 'string',
+		required: true,
+		displayOptions: {
+			show: {
+				resource: ['product'],
+				operation: ['changeOwner'],
+			},
+		},
+		default: '',
+		description: 'IDs of records to transfer (comma-separated for bulk, max 500)',
+		placeholder: '4876876000000624001, 4876876000000624002',
 	},
 ];
