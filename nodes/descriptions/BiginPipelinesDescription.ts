@@ -20,6 +20,8 @@ export const pipelinesOperations: INodeProperties[] = [
 			{ name: 'Search', value: 'searchPipelines', description: 'Search pipeline records' },
 			{ name: 'Get Deleted Records', value: 'getDeletedRecords', description: 'Get deleted pipelines with metadata' },
 			{ name: 'Get Fields', value: 'getFields', description: 'Get metadata for pipeline fields' },
+			{ name: 'Get Modules', value: 'getModules', description: 'Get all available modules' },
+			{ name: 'Get Organization', value: 'getOrganization', description: 'Get organization information' },
 			{ name: 'Bulk Create', value: 'bulkCreatePipelines', description: 'Create multiple pipeline records' },
 			{ name: 'Bulk Update', value: 'bulkUpdatePipelines', description: 'Update multiple pipeline records' },
 			{ name: 'Get Related Records', value: 'getRelatedRecords', description: 'Get records related to a pipeline' },

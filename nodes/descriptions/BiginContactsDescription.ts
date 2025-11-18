@@ -20,6 +20,8 @@ export const contactsOperations: INodeProperties[] = [
 			{ name: 'Search', value: 'searchContacts', description: 'Search contacts' },
 			{ name: 'Get Deleted Records', value: 'getDeletedRecords', description: 'Get deleted contacts with metadata' },
 			{ name: 'Get Fields', value: 'getFields', description: 'Get metadata for contact fields' },
+			{ name: 'Get Modules', value: 'getModules', description: 'Get all available modules' },
+			{ name: 'Get Organization', value: 'getOrganization', description: 'Get organization information' },
 			{ name: 'Bulk Create', value: 'bulkCreateContacts', description: 'Create multiple contacts' },
 			{ name: 'Bulk Update', value: 'bulkUpdateContacts', description: 'Update multiple contacts' },
 			{ name: 'Get Related Records', value: 'getRelatedRecords', description: 'Get records related to a contact' },

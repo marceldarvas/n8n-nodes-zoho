@@ -1287,6 +1287,39 @@ export class ZohoBigin implements INodeType {
 			});
 
 			return result.fields as IDataObject[];
+
+		} else if (operation === 'getModules') {
+			// Get all available modules (system-wide operation)
+			const cacheKey = 'modules:all';
+			const result = await ZohoBigin.getCachedMetadata(cacheKey, async () => {
+				const response = await zohoBiginApiRequest.call(
+					context,
+					'GET',
+					'/settings/modules',
+					{},
+					{},
+				);
+				return { modules: response.modules || [] };
+			});
+
+			return result.modules as IDataObject[];
+
+		} else if (operation === 'getOrganization') {
+			// Get organization information (system-wide operation)
+			const cacheKey = 'organization:info';
+			const result = await ZohoBigin.getCachedMetadata(cacheKey, async () => {
+				const response = await zohoBiginApiRequest.call(
+					context,
+					'GET',
+					'/org',
+					{},
+					{},
+				);
+				return { org: response.org || [] };
+			});
+
+			return result.org as IDataObject[];
+
 		} else if (operation === 'getRelatedRecords') {
 			const recordId = context.getNodeParameter('recordId', itemIndex) as string;
 			const relatedModule = context.getNodeParameter('relatedModule', itemIndex) as string;
@@ -2060,6 +2093,38 @@ export class ZohoBigin implements INodeType {
 
 			return result.fields as IDataObject[];
 
+		} else if (operation === 'getModules') {
+			// Get all available modules (system-wide operation)
+			const cacheKey = 'modules:all';
+			const result = await ZohoBigin.getCachedMetadata(cacheKey, async () => {
+				const response = await zohoBiginApiRequest.call(
+					context,
+					'GET',
+					'/settings/modules',
+					{},
+					{},
+				);
+				return { modules: response.modules || [] };
+			});
+
+			return result.modules as IDataObject[];
+
+		} else if (operation === 'getOrganization') {
+			// Get organization information (system-wide operation)
+			const cacheKey = 'organization:info';
+			const result = await ZohoBigin.getCachedMetadata(cacheKey, async () => {
+				const response = await zohoBiginApiRequest.call(
+					context,
+					'GET',
+					'/org',
+					{},
+					{},
+				);
+				return { org: response.org || [] };
+			});
+
+			return result.org as IDataObject[];
+
 		} else if (operation === 'getRelatedRecords') {
 			const recordId = context.getNodeParameter('recordId', itemIndex) as string;
 			const relatedModule = context.getNodeParameter('relatedModule', itemIndex) as string;
@@ -2768,6 +2833,39 @@ export class ZohoBigin implements INodeType {
 			});
 
 			return result.fields as IDataObject[];
+
+		} else if (operation === 'getModules') {
+			// Get all available modules (system-wide operation)
+			const cacheKey = 'modules:all';
+			const result = await ZohoBigin.getCachedMetadata(cacheKey, async () => {
+				const response = await zohoBiginApiRequest.call(
+					context,
+					'GET',
+					'/settings/modules',
+					{},
+					{},
+				);
+				return { modules: response.modules || [] };
+			});
+
+			return result.modules as IDataObject[];
+
+		} else if (operation === 'getOrganization') {
+			// Get organization information (system-wide operation)
+			const cacheKey = 'organization:info';
+			const result = await ZohoBigin.getCachedMetadata(cacheKey, async () => {
+				const response = await zohoBiginApiRequest.call(
+					context,
+					'GET',
+					'/org',
+					{},
+					{},
+				);
+				return { org: response.org || [] };
+			});
+
+			return result.org as IDataObject[];
+
 		} else if (operation === 'getRelatedRecords') {
 			const recordId = context.getNodeParameter('recordId', itemIndex) as string;
 			const relatedModule = context.getNodeParameter('relatedModule', itemIndex) as string;
@@ -3458,6 +3556,39 @@ export class ZohoBigin implements INodeType {
 			});
 
 			return result.fields as IDataObject[];
+
+		} else if (operation === 'getModules') {
+			// Get all available modules (system-wide operation)
+			const cacheKey = 'modules:all';
+			const result = await ZohoBigin.getCachedMetadata(cacheKey, async () => {
+				const response = await zohoBiginApiRequest.call(
+					context,
+					'GET',
+					'/settings/modules',
+					{},
+					{},
+				);
+				return { modules: response.modules || [] };
+			});
+
+			return result.modules as IDataObject[];
+
+		} else if (operation === 'getOrganization') {
+			// Get organization information (system-wide operation)
+			const cacheKey = 'organization:info';
+			const result = await ZohoBigin.getCachedMetadata(cacheKey, async () => {
+				const response = await zohoBiginApiRequest.call(
+					context,
+					'GET',
+					'/org',
+					{},
+					{},
+				);
+				return { org: response.org || [] };
+			});
+
+			return result.org as IDataObject[];
+
 		} else if (operation === 'uploadPhoto') {
 			const recordId = context.getNodeParameter('recordId', itemIndex) as string;
 			const binaryPropertyName = context.getNodeParameter('binaryPropertyName', itemIndex, 'data') as string;
@@ -3788,6 +3919,54 @@ export class ZohoBigin implements INodeType {
 
 				return response.data || [];
 			}
+
+		} else if (operation === 'getFields') {
+			// Use cached metadata to reduce API calls
+			const cacheKey = 'fields:Tasks';
+			const result = await ZohoBigin.getCachedMetadata(cacheKey, async () => {
+				const response = await zohoBiginApiRequest.call(
+					context,
+					'GET',
+					'/settings/fields?module=Tasks',
+					{},
+					{},
+				);
+				return { fields: response.fields || [] };
+			});
+
+			return result.fields as IDataObject[];
+
+		} else if (operation === 'getModules') {
+			// Get all available modules (system-wide operation)
+			const cacheKey = 'modules:all';
+			const result = await ZohoBigin.getCachedMetadata(cacheKey, async () => {
+				const response = await zohoBiginApiRequest.call(
+					context,
+					'GET',
+					'/settings/modules',
+					{},
+					{},
+				);
+				return { modules: response.modules || [] };
+			});
+
+			return result.modules as IDataObject[];
+
+		} else if (operation === 'getOrganization') {
+			// Get organization information (system-wide operation)
+			const cacheKey = 'organization:info';
+			const result = await ZohoBigin.getCachedMetadata(cacheKey, async () => {
+				const response = await zohoBiginApiRequest.call(
+					context,
+					'GET',
+					'/org',
+					{},
+					{},
+				);
+				return { org: response.org || [] };
+			});
+
+			return result.org as IDataObject[];
 		}
 
 		throw new NodeOperationError(
@@ -4041,6 +4220,54 @@ export class ZohoBigin implements INodeType {
 
 				return response.data || [];
 			}
+
+		} else if (operation === 'getFields') {
+			// Use cached metadata to reduce API calls
+			const cacheKey = 'fields:Events';
+			const result = await ZohoBigin.getCachedMetadata(cacheKey, async () => {
+				const response = await zohoBiginApiRequest.call(
+					context,
+					'GET',
+					'/settings/fields?module=Events',
+					{},
+					{},
+				);
+				return { fields: response.fields || [] };
+			});
+
+			return result.fields as IDataObject[];
+
+		} else if (operation === 'getModules') {
+			// Get all available modules (system-wide operation)
+			const cacheKey = 'modules:all';
+			const result = await ZohoBigin.getCachedMetadata(cacheKey, async () => {
+				const response = await zohoBiginApiRequest.call(
+					context,
+					'GET',
+					'/settings/modules',
+					{},
+					{},
+				);
+				return { modules: response.modules || [] };
+			});
+
+			return result.modules as IDataObject[];
+
+		} else if (operation === 'getOrganization') {
+			// Get organization information (system-wide operation)
+			const cacheKey = 'organization:info';
+			const result = await ZohoBigin.getCachedMetadata(cacheKey, async () => {
+				const response = await zohoBiginApiRequest.call(
+					context,
+					'GET',
+					'/org',
+					{},
+					{},
+				);
+				return { org: response.org || [] };
+			});
+
+			return result.org as IDataObject[];
 		}
 
 		throw new NodeOperationError(

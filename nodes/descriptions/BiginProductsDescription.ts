@@ -19,6 +19,8 @@ export const productsOperations: INodeProperties[] = [
 			{ name: 'Upsert', value: 'upsertProduct', description: 'Create or update a product (idempotent)' },
 			{ name: 'Get Deleted Records', value: 'getDeletedRecords', description: 'Get deleted products with metadata' },
 			{ name: 'Get Fields', value: 'getFields', description: 'Get metadata for product fields' },
+			{ name: 'Get Modules', value: 'getModules', description: 'Get all available modules' },
+			{ name: 'Get Organization', value: 'getOrganization', description: 'Get organization information' },
 			{ name: 'Bulk Create', value: 'bulkCreateProducts', description: 'Create multiple products' },
 			{ name: 'Bulk Update', value: 'bulkUpdateProducts', description: 'Update multiple products' },
 			{ name: 'Upload Photo', value: 'uploadPhoto', description: 'Upload a product photo' },

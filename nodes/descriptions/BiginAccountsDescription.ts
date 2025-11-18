@@ -20,6 +20,8 @@ export const accountsOperations: INodeProperties[] = [
 			{ name: 'Search', value: 'searchAccounts', description: 'Search companies/accounts' },
 			{ name: 'Get Deleted Records', value: 'getDeletedRecords', description: 'Get deleted accounts with metadata' },
 			{ name: 'Get Fields', value: 'getFields', description: 'Get metadata for account fields' },
+			{ name: 'Get Modules', value: 'getModules', description: 'Get all available modules' },
+			{ name: 'Get Organization', value: 'getOrganization', description: 'Get organization information' },
 			{ name: 'Bulk Create', value: 'bulkCreateAccounts', description: 'Create multiple companies/accounts' },
 			{ name: 'Bulk Update', value: 'bulkUpdateAccounts', description: 'Update multiple companies/accounts' },
 			{ name: 'Get Related Records', value: 'getRelatedRecords', description: 'Get records related to an account' },
