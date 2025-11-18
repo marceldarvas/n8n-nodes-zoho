@@ -17,6 +17,7 @@ export const productsOperations: INodeProperties[] = [
 			{ name: 'Update', value: 'updateProduct', description: 'Update a product' },
 			{ name: 'Delete', value: 'deleteProduct', description: 'Delete a product' },
 			{ name: 'Upsert', value: 'upsertProduct', description: 'Create or update a product (idempotent)' },
+			{ name: 'Get Deleted Records', value: 'getDeletedRecords', description: 'Get deleted products with metadata' },
 			{ name: 'Get Fields', value: 'getFields', description: 'Get metadata for product fields' },
 			{ name: 'Bulk Create', value: 'bulkCreateProducts', description: 'Create multiple products' },
 			{ name: 'Bulk Update', value: 'bulkUpdateProducts', description: 'Update multiple products' },
@@ -242,6 +243,29 @@ export const productsFields: INodeProperties[] = [
 		],
 		default: ['Product_Name'],
 		description: 'Fields to use for duplicate detection. If a product with matching values exists, it will be updated; otherwise, a new product will be created.',
+	},
+
+	// Get Deleted Records - Pagination
+	...paginationFields('product', 'getDeletedRecords'),
+
+	// Get Deleted Records - Deletion Type
+	{
+		displayName: 'Deletion Type',
+		name: 'deletionType',
+		type: 'options',
+		displayOptions: {
+			show: {
+				resource: ['product'],
+				operation: ['getDeletedRecords'],
+			},
+		},
+		options: [
+			{ name: 'All', value: 'all', description: 'All deleted records' },
+			{ name: 'Recycle Bin', value: 'recycle', description: 'Records in recycle bin (recoverable)' },
+			{ name: 'Permanent', value: 'permanent', description: 'Permanently deleted records' },
+		],
+		default: 'all',
+		description: 'Type of deleted records to retrieve',
 	},
 
 	// Bulk operations - Products Data (JSON)
