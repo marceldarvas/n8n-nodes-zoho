@@ -18,6 +18,7 @@ export const contactsOperations: INodeProperties[] = [
 			{ name: 'Upsert', value: 'upsertContact', description: 'Create or update a contact (idempotent)' },
 			{ name: 'Delete', value: 'deleteContact', description: 'Delete a contact' },
 			{ name: 'Search', value: 'searchContacts', description: 'Search contacts' },
+			{ name: 'Get Deleted Records', value: 'getDeletedRecords', description: 'Get deleted contacts with metadata' },
 			{ name: 'Get Fields', value: 'getFields', description: 'Get metadata for contact fields' },
 			{ name: 'Bulk Create', value: 'bulkCreateContacts', description: 'Create multiple contacts' },
 			{ name: 'Bulk Update', value: 'bulkUpdateContacts', description: 'Update multiple contacts' },
@@ -408,6 +409,29 @@ export const contactsFields: INodeProperties[] = [
 				],
 			},
 		],
+	},
+
+	// Get Deleted Records - Pagination
+	...paginationFields('contact', 'getDeletedRecords'),
+
+	// Get Deleted Records - Deletion Type
+	{
+		displayName: 'Deletion Type',
+		name: 'deletionType',
+		type: 'options',
+		displayOptions: {
+			show: {
+				resource: ['contact'],
+				operation: ['getDeletedRecords'],
+			},
+		},
+		options: [
+			{ name: 'All', value: 'all', description: 'All deleted records' },
+			{ name: 'Recycle Bin', value: 'recycle', description: 'Records in recycle bin (recoverable)' },
+			{ name: 'Permanent', value: 'permanent', description: 'Permanently deleted records' },
+		],
+		default: 'all',
+		description: 'Type of deleted records to retrieve',
 	},
 
 	// Bulk operations - Contacts Data (JSON)
