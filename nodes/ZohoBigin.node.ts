@@ -123,45 +123,109 @@ export class ZohoBigin implements INodeType {
 		],
 	};
 
+	/**
+	 * Static helper method to fetch picklist options for any field in any module
+	 *
+	 * This method provides dynamic dropdown population for:
+	 * - Standard picklist fields (e.g., Lead_Source, Industry, Priority)
+	 * - Custom fields with picklist type
+	 * - Multi-select picklists
+	 * - Boolean fields (Yes/No)
+	 *
+	 * @param context - Load options function context
+	 * @param moduleName - API name of the module (Contacts, Pipelines, Accounts, etc.)
+	 * @param fieldApiName - API name of the field (Lead_Source, Industry, cf_custom_field, etc.)
+	 * @returns Array of options with name (display) and value (actual value)
+	 *
+	 * Features:
+	 * - 1-hour cache to minimize API calls
+	 * - Localized display values (automatic language support)
+	 * - Falls back to actual values if display values missing
+	 * - Returns empty array if field not found (graceful degradation)
+	 */
+	private static async fetchFieldPicklistOptions(
+		context: ILoadOptionsFunctions,
+		moduleName: string,
+		fieldApiName: string,
+	): Promise<INodePropertyOptions[]> {
+		try {
+			const cacheKey = `fields:${moduleName}:${fieldApiName}`;
+			const cached = ZohoBigin.metadataCache.get(cacheKey);
+			const now = Date.now();
+
+			// Return cached options if available and not expired
+			if (cached && cached.expiry > now) {
+				return cached.data.options as INodePropertyOptions[];
+			}
+
+			// Fetch field metadata from Bigin Settings API
+			const response = await zohoBiginApiRequest.call(
+				context,
+				'GET',
+				`/settings/fields?module=${moduleName}`,
+				{},
+				{},
+			);
+
+			// Find the requested field
+			const fields = response.fields || [];
+			const targetField = fields.find(
+				(field: IDataObject) => field.api_name === fieldApiName,
+			);
+
+			if (!targetField) {
+				// Field not found - return empty array
+				return [];
+			}
+
+			// Extract picklist values
+			const pickListValues = (targetField.pick_list_values || []) as IDataObject[];
+
+			if (pickListValues.length === 0) {
+				// No picklist values available
+				return [];
+			}
+
+			// Map to n8n options format (prioritize display_value for localization)
+			const options: INodePropertyOptions[] = pickListValues.map((item: IDataObject) => ({
+				name: (item.display_value as string) || (item.actual_value as string),
+				value: item.actual_value as string,
+			}));
+
+			// Cache the options for 1 hour
+			ZohoBigin.metadataCache.set(cacheKey, {
+				data: { options },
+				expiry: now + (60 * 60 * 1000),
+			});
+
+			return options;
+		} catch (error) {
+			// Log error but don't crash - return empty array
+			console.error(`Failed to fetch picklist options for ${moduleName}.${fieldApiName}:`, error);
+			return [];
+		}
+	}
+
 	methods = {
 		loadOptions: {
 			/**
 			 * Load Data Processing Basis options from Bigin field metadata
 			 * Fetches picklist values for the GDPR Data_Processing_Basis field
 			 * Results are cached for 1 hour to minimize API calls
+			 *
+			 * Usage: Set loadOptionsMethod to 'getDataProcessingBasisOptions'
+			 * Module: Contacts
+			 * Field: Data_Processing_Basis
 			 */
 			async getDataProcessingBasisOptions(
 				this: ILoadOptionsFunctions,
 			): Promise<INodePropertyOptions[]> {
 				try {
-					// Use cached metadata to reduce API calls
-					const cacheKey = 'fields:Contacts:Data_Processing_Basis';
+					// Use the generic helper method with fallback
+					const options = await ZohoBigin.fetchFieldPicklistOptions(this, 'Contacts', 'Data_Processing_Basis');
 
-					// Check cache first
-					const cached = ZohoBigin.metadataCache.get(cacheKey);
-					const now = Date.now();
-
-					if (cached && cached.expiry > now) {
-						return cached.data.options as INodePropertyOptions[];
-					}
-
-					// Fetch field metadata from Bigin API
-					const response = await zohoBiginApiRequest.call(
-						this,
-						'GET',
-						'/settings/fields?module=Contacts',
-						{},
-						{},
-					);
-
-					// Find the Data_Processing_Basis field
-					const fields = response.fields || [];
-					const dataProcessingField = fields.find(
-						(field: IDataObject) => field.api_name === 'Data_Processing_Basis',
-					);
-
-					if (!dataProcessingField) {
-						// Return default options if field not found
+					// If no options returned (field not found), provide default GDPR values
+					if (options.length === 0) {
 						return [
 							{ name: 'Not Applicable', value: 'Not Applicable' },
 							{ name: 'Legitimate Interests', value: 'Legitimate Interests' },
@@ -175,19 +239,6 @@ export class ZohoBigin implements INodeType {
 							{ name: 'Not Responded', value: 'Not Responded' },
 						];
 					}
-
-					// Extract picklist values
-					const pickListValues = (dataProcessingField.pick_list_values || []) as IDataObject[];
-					const options: INodePropertyOptions[] = pickListValues.map((item: IDataObject) => ({
-						name: item.display_value as string || item.actual_value as string,
-						value: item.actual_value as string,
-					}));
-
-					// Cache the options for 1 hour
-					ZohoBigin.metadataCache.set(cacheKey, {
-						data: { options },
-						expiry: now + (60 * 60 * 1000), // 1 hour
-					});
 
 					return options;
 				} catch (error) {
@@ -206,6 +257,72 @@ export class ZohoBigin implements INodeType {
 					];
 				}
 			},
+
+			// ===================================================================
+			// EXAMPLE METHODS: Add custom load options methods for your fields
+			// ===================================================================
+			// To add a new picklist field dropdown:
+			// 1. Copy one of the example methods below
+			// 2. Uncomment and change the method name (e.g., getContactLeadSourceOptions)
+			// 3. Update the moduleName and fieldApiName in ZohoBigin.fetchFieldPicklistOptions()
+			// 4. Add the method name to your field's typeOptions.loadOptionsMethod
+			//
+			// Example: For a custom field "cf_pizza_topping" in Contacts:
+			// async getContactPizzaToppingOptions(this: ILoadOptionsFunctions): Promise<INodePropertyOptions[]> {
+			//     return await ZohoBigin.fetchFieldPicklistOptions(this, 'Contacts', 'cf_pizza_topping');
+			// }
+			// ===================================================================
+
+			/**
+			 * Example: Load Lead Source options for Contacts
+			 * Usage: loadOptionsMethod: 'getContactLeadSourceOptions'
+			 */
+			// async getContactLeadSourceOptions(
+			// 	this: ILoadOptionsFunctions,
+			// ): Promise<INodePropertyOptions[]> {
+			// 	return await ZohoBigin.fetchFieldPicklistOptions(this, 'Contacts', 'Lead_Source');
+			// },
+
+			/**
+			 * Example: Load Industry options for Accounts
+			 * Usage: loadOptionsMethod: 'getAccountIndustryOptions'
+			 */
+			// async getAccountIndustryOptions(
+			// 	this: ILoadOptionsFunctions,
+			// ): Promise<INodePropertyOptions[]> {
+			// 	return await ZohoBigin.fetchFieldPicklistOptions(this, 'Accounts', 'Industry');
+			// },
+
+			/**
+			 * Example: Load Pipeline Stage options for Pipelines (Deals)
+			 * Usage: loadOptionsMethod: 'getPipelineStageOptions'
+			 */
+			// async getPipelineStageOptions(
+			// 	this: ILoadOptionsFunctions,
+			// ): Promise<INodePropertyOptions[]> {
+			// 	return await ZohoBigin.fetchFieldPicklistOptions(this, 'Deals', 'Stage');
+			// },
+
+			/**
+			 * Example: Load Priority options for Tasks
+			 * Usage: loadOptionsMethod: 'getTaskPriorityOptions'
+			 */
+			// async getTaskPriorityOptions(
+			// 	this: ILoadOptionsFunctions,
+			// ): Promise<INodePropertyOptions[]> {
+			// 	return await ZohoBigin.fetchFieldPicklistOptions(this, 'Tasks', 'Priority');
+			// },
+
+			/**
+			 * Example: Load custom field options
+			 * Replace 'cf_1234567890' with your actual custom field ID
+			 * Usage: loadOptionsMethod: 'getCustomFieldOptions'
+			 */
+			// async getCustomFieldOptions(
+			// 	this: ILoadOptionsFunctions,
+			// ): Promise<INodePropertyOptions[]> {
+			// 	return await ZohoBigin.fetchFieldPicklistOptions(this, 'Contacts', 'cf_1234567890');
+			// },
 		},
 	};
 
