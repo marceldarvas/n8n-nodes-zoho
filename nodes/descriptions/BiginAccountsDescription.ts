@@ -15,6 +15,7 @@ export const accountsOperations: INodeProperties[] = [
 			{ name: 'Get', value: 'getAccount', description: 'Get a company/account' },
 			{ name: 'Create', value: 'createAccount', description: 'Create a company/account' },
 			{ name: 'Update', value: 'updateAccount', description: 'Update a company/account' },
+			{ name: 'Upsert', value: 'upsertAccount', description: 'Create or update a company/account (idempotent)' },
 			{ name: 'Delete', value: 'deleteAccount', description: 'Delete a company/account' },
 			{ name: 'Search', value: 'searchAccounts', description: 'Search companies/accounts' },
 			{ name: 'Get Fields', value: 'getFields', description: 'Get metadata for account fields' },
@@ -73,7 +74,7 @@ export const accountsFields: INodeProperties[] = [
 		description: 'Name of the company/account (required)',
 	},
 
-	// Create/Update - Additional Fields
+	// Create/Update/Upsert - Additional Fields
 	{
 		displayName: 'Additional Fields',
 		name: 'additionalFields',
@@ -83,7 +84,7 @@ export const accountsFields: INodeProperties[] = [
 		displayOptions: {
 			show: {
 				resource: ['account'],
-				operation: ['createAccount', 'updateAccount'],
+				operation: ['createAccount', 'updateAccount', 'upsertAccount'],
 			},
 		},
 		options: [
@@ -172,7 +173,7 @@ export const accountsFields: INodeProperties[] = [
 		displayOptions: {
 			show: {
 				resource: ['account'],
-				operation: ['createAccount', 'updateAccount'],
+				operation: ['createAccount', 'updateAccount', 'upsertAccount'],
 			},
 		},
 		options: [
@@ -276,6 +277,47 @@ export const accountsFields: INodeProperties[] = [
 				],
 			},
 		],
+	},
+
+	// ========================================
+	// Upsert Operation Parameters
+	// ========================================
+	// Upsert - Account Name (required)
+	{
+		displayName: 'Account Name',
+		name: 'accountName',
+		type: 'string',
+		required: true,
+		displayOptions: {
+			show: {
+				resource: ['account'],
+				operation: ['upsertAccount'],
+			},
+		},
+		default: '',
+		description: 'Name of the company/account (required for upsert)',
+	},
+
+	// Upsert - Duplicate Check Fields
+	{
+		displayName: 'Duplicate Check Fields',
+		name: 'duplicateCheckFields',
+		type: 'multiOptions',
+		required: true,
+		displayOptions: {
+			show: {
+				resource: ['account'],
+				operation: ['upsertAccount'],
+			},
+		},
+		options: [
+			{ name: 'Account Name', value: 'Account_Name' },
+			{ name: 'Website', value: 'Website' },
+			{ name: 'Phone', value: 'Phone' },
+			{ name: 'Email', value: 'Email' },
+		],
+		default: ['Account_Name'],
+		description: 'Fields to use for duplicate detection. If a record with matching values exists, it will be updated; otherwise, a new record will be created.',
 	},
 
 	// Filters for list/search
