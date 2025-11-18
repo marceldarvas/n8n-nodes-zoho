@@ -17,6 +17,7 @@ export const tasksOperations: INodeProperties[] = [
 			{ name: 'Update', value: 'updateTask', description: 'Update a task' },
 			{ name: 'Delete', value: 'deleteTask', description: 'Delete a task' },
 			{ name: 'Upsert', value: 'upsertTask', description: 'Create or update a task (idempotent)' },
+			{ name: 'Get Deleted Records', value: 'getDeletedRecords', description: 'Get deleted tasks with metadata' },
 		],
 		default: 'listTasks',
 	},
@@ -222,5 +223,28 @@ export const tasksFields: INodeProperties[] = [
 		],
 		default: ['Subject'],
 		description: 'Fields to use for duplicate detection. If a task with matching values exists, it will be updated; otherwise, a new task will be created.',
+	},
+
+	// Get Deleted Records - Pagination
+	...paginationFields('task', 'getDeletedRecords'),
+
+	// Get Deleted Records - Deletion Type
+	{
+		displayName: 'Deletion Type',
+		name: 'deletionType',
+		type: 'options',
+		displayOptions: {
+			show: {
+				resource: ['task'],
+				operation: ['getDeletedRecords'],
+			},
+		},
+		options: [
+			{ name: 'All', value: 'all', description: 'All deleted records' },
+			{ name: 'Recycle Bin', value: 'recycle', description: 'Records in recycle bin (recoverable)' },
+			{ name: 'Permanent', value: 'permanent', description: 'Permanently deleted records' },
+		],
+		default: 'all',
+		description: 'Type of deleted records to retrieve',
 	},
 ];
