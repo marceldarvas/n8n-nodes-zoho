@@ -49,6 +49,49 @@ Advanced email automation:
 - **Flexible Scheduling**: Multiple scheduling options including custom date/time
 - Timezone support for global operations
 
+### 👥 Zoho Bigin
+Lightweight CRM designed for small businesses, offering comprehensive sales pipeline and contact management:
+
+#### **Pipelines (Deals)**
+- **Full CRUD Operations**: Create, read, update, and delete sales pipelines
+- **Search & Filter**: Advanced search with COQL-based queries
+- **Stage Management**: Move deals through sales stages
+- **Custom Fields**: Full support for custom field management
+
+#### **Contacts**
+- **Complete Contact Management**: Full CRUD operations for contact records
+- **Advanced Search**: COQL-based search and filtering capabilities
+- **Bulk Operations**: Batch create and update multiple contacts
+- **Relationship Management**: Link contacts to accounts and pipelines
+
+#### **Accounts (Companies)**
+- **Organization Management**: Create and manage company accounts
+- **Search Capabilities**: Find accounts using flexible search criteria
+- **Full CRUD**: Complete account lifecycle management
+
+#### **Products & Services**
+- **Product Catalog**: Manage product and service offerings
+- **CRUD Operations**: Create, read, update, and delete products
+- **Pricing Management**: Configure product pricing and details
+
+#### **Tasks & Events**
+- **Task Management**: Create and track tasks related to pipelines, contacts, and accounts
+- **Event Scheduling**: Schedule and manage calendar events
+- **Reminders**: Set up task reminders and due dates
+- **Activity Tracking**: Link activities to related CRM records
+
+#### **Notes**
+- **Note Management**: Add notes to any CRM record
+- **Full CRUD**: Create, read, update, and delete notes
+- **Multi-entity Support**: Attach notes to pipelines, contacts, accounts, and more
+
+**Key Features**:
+- Multi-regional support (US, EU, AU, IN, CN)
+- OAuth2 authentication with automatic token refresh
+- Pagination for large datasets
+- Custom field support across all modules
+- Type-safe TypeScript implementation
+
 ## Installation
 
 ### Prerequisites
@@ -93,8 +136,9 @@ Before using the nodes, you need to create a Zoho application:
 3. Configure appropriate scopes based on the services you'll use:
    - **Sheets**: `ZohoSheet.operation.ALL`
    - **Tasks**: `ZohoTasks.operation.ALL`
-   - **Billing**: `ZohoBilling.operation.ALL`  
+   - **Billing**: `ZohoBilling.operation.ALL`
    - **Email**: `ZohoMail.operation.ALL`
+   - **Bigin**: `ZohoBigin.modules.ALL`
 
 ### 2. n8n Credential Configuration
 
@@ -248,6 +292,126 @@ Time Zone: "GMT +5:30"
 Schedule Time: "01/25/2024 10:30:00"
 ```
 
+### Zoho Bigin Examples
+
+#### Pipeline Management
+```javascript
+// Create a New Pipeline (Deal)
+Operation: "Create"
+Resource: "Pipelines"
+JSON Data: '{
+  "Deal_Name": "Enterprise Software License",
+  "Stage": "Qualification",
+  "Amount": 50000,
+  "Closing_Date": "2024-06-30",
+  "Contact_Name": {"id": "contact_123"}
+}'
+
+// List Pipelines with Filters
+Operation: "List"
+Resource: "Pipelines"
+Page: 1
+Per Page: 50
+Sort Order: "desc"
+Sort By: "Amount"
+
+// Update Pipeline Stage
+Operation: "Update"
+Resource: "Pipelines"
+Pipeline ID: "pipeline_456"
+JSON Data: '{"Stage": "Proposal", "Amount": 55000}'
+
+// Search Pipelines
+Operation: "Search"
+Resource: "Pipelines"
+COQL Query: "select Deal_Name, Amount, Stage from Deals where Stage = 'Qualification' and Amount > 10000"
+```
+
+#### Contact Management
+```javascript
+// Create a Contact
+Operation: "Create"
+Resource: "Contacts"
+JSON Data: '{
+  "First_Name": "John",
+  "Last_Name": "Doe",
+  "Email": "john.doe@example.com",
+  "Phone": "+1-555-0123",
+  "Company": {"id": "account_789"}
+}'
+
+// Bulk Create Contacts
+Operation: "Bulk Create"
+Resource: "Contacts"
+JSON Data: '[
+  {"First_Name": "Jane", "Last_Name": "Smith", "Email": "jane@example.com"},
+  {"First_Name": "Bob", "Last_Name": "Johnson", "Email": "bob@example.com"}
+]'
+
+// Search Contacts
+Operation: "Search"
+Resource: "Contacts"
+COQL Query: "select First_Name, Last_Name, Email from Contacts where Email like '%@example.com%'"
+```
+
+#### Account and Product Management
+```javascript
+// Create an Account (Company)
+Operation: "Create"
+Resource: "Accounts"
+JSON Data: '{
+  "Account_Name": "Acme Corporation",
+  "Website": "https://acme.example.com",
+  "Industry": "Technology",
+  "Annual_Revenue": 5000000
+}'
+
+// Create a Product
+Operation: "Create"
+Resource: "Products"
+JSON Data: '{
+  "Product_Name": "Premium Support Package",
+  "Unit_Price": 999.99,
+  "Description": "24/7 premium technical support"
+}'
+```
+
+#### Task and Event Tracking
+```javascript
+// Create a Task
+Operation: "Create"
+Resource: "Tasks"
+JSON Data: '{
+  "Subject": "Follow up with prospect",
+  "Due_Date": "2024-02-15",
+  "Priority": "High",
+  "Status": "Not Started",
+  "Related_To": {"id": "pipeline_123", "module": "Deals"}
+}'
+
+// Create an Event
+Operation: "Create"
+Resource: "Events"
+JSON Data: '{
+  "Event_Title": "Sales Demo",
+  "Start_DateTime": "2024-02-10T14:00:00-05:00",
+  "End_DateTime": "2024-02-10T15:00:00-05:00",
+  "Participants": [{"type": "contact", "participant": "contact_456"}]
+}'
+```
+
+#### Note Management
+```javascript
+// Add Note to Pipeline
+Operation: "Create"
+Resource: "Notes"
+JSON Data: '{
+  "Note_Title": "Meeting Summary",
+  "Note_Content": "Discussed pricing and implementation timeline",
+  "Parent_Id": {"id": "pipeline_123", "module": "Deals"}
+}'
+```
+
 ## Advanced Configuration
 
 ### Error Handling
@@ -273,6 +437,7 @@ Leverage n8n's expression editor for:
 Detailed API documentation is available in the `docs/` directory:
 - [Email API Documentation](docs/Email.md) - Complete email functionality reference
 - [Tasks API Documentation](docs/Tasks.md) - Task and project management details
+- [Bigin API Documentation](docs/Bigin.md) - Lightweight CRM integration reference
 
 ### Developer Documentation
 
@@ -289,6 +454,7 @@ These guides are based on the official [Zoho Calendar implementation pattern](ht
 n8n-nodes-zoho/
 ├── credentials/          # OAuth2 credential definitions
 ├── nodes/               # Node implementations
+│   ├── ZohoBigin.node.ts
 │   ├── ZohoBilling.node.ts
 │   ├── ZohoEmail.node.ts
 │   ├── ZohoSheets.node.ts

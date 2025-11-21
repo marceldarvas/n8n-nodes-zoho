@@ -64,6 +64,25 @@ export function getSubscriptionsBaseUrl(accessTokenUrl: string): string {
 }
 
 /**
+ * Map Zoho OAuth2 token URL to the appropriate Bigin API base URL.
+ * Supports all Zoho regions: US, EU, AU, IN, CN.
+ *
+ * @param accessTokenUrl - The OAuth2 token URL from credentials
+ * @returns The corresponding Bigin API base URL
+ */
+export function getBiginBaseUrl(accessTokenUrl: string): string {
+    const urlMap: { [key: string]: string } = {
+        'https://accounts.zoho.com/oauth/v2/token': 'https://www.zohoapis.com/bigin/v1',
+        'https://accounts.zoho.eu/oauth/v2/token': 'https://www.zohoapis.eu/bigin/v1',
+        'https://accounts.zoho.com.au/oauth/v2/token': 'https://www.zohoapis.com.au/bigin/v1',
+        'https://accounts.zoho.in/oauth/v2/token': 'https://www.zohoapis.in/bigin/v1',
+        'https://accounts.zoho.com.cn/oauth/v2/token': 'https://www.zohoapis.com.cn/bigin/v1',
+    };
+
+    return urlMap[accessTokenUrl] || urlMap['https://accounts.zoho.com/oauth/v2/token'];
+}
+
+/**
  * Retrieve and refresh Zoho OAuth2 token data.
  */
 async function getAccessTokenData(
@@ -281,6 +300,89 @@ export async function zohoCalendarApiRequest(
         const args = errorData
             ? {
                 message: errorData.message || 'The Zoho Calendar API returned an error.',
+                description: JSON.stringify(errorData, null, 2),
+            }
+            : undefined;
+        throw new NodeApiError(this.getNode(), error as JsonObject, args);
+    }
+}
+
+/**
+ * Make an authenticated API request to Zoho Bigin CRM API.
+ * Bigin API follows the CRM v2 API structure with JSON request/response format.
+ *
+ * @param method - HTTP method (GET, POST, PUT, DELETE, etc.)
+ * @param endpoint - API endpoint path (e.g., '/Pipelines', '/Contacts/{id}')
+ * @param body - Request body data
+ * @param qs - Query string parameters
+ * @param headers - Additional headers to include in the request
+ * @param additionalOptions - Additional request options (formData, encoding, json, etc.)
+ * @returns Promise resolving to the API response data
+ * @throws {NodeApiError} When the API request fails
+ * @see https://www.zoho.com/bigin/developer/docs/api/v1/
+ */
+export async function zohoBiginApiRequest(
+    this: IExecuteFunctions | IHookFunctions | ILoadOptionsFunctions,
+    method: IHttpRequestMethods,
+    endpoint: string,
+    body: IDataObject = {},
+    qs: IDataObject = {},
+    headers?: IDataObject,
+    additionalOptions?: IDataObject,
+): Promise<any> {
+    const {access_token} = await getAccessTokenData.call(this);
+    const credentials = await this.getCredentials('zohoApi');
+    const baseUrl = getBiginBaseUrl(credentials.accessTokenUrl as string);
+
+    const options: IRequestOptions = {
+        method,
+        url: `${baseUrl}${endpoint}`,
+        headers: {
+            Authorization: 'Zoho-oauthtoken ' + access_token,
+            ...(headers || {}),
+        },
+        json: true,
+    };
+
+    // Handle file uploads with formData
+    if (additionalOptions?.formData) {
+        options.formData = additionalOptions.formData as IDataObject;
+        // Remove Content-Type header for multipart/form-data (auto-set by request library)
+        delete options.headers!['Content-Type'];
+    } else {
+        // Standard JSON content type for non-file operations
+        options.headers!['Content-Type'] = 'application/json';
+        if (Object.keys(body).length) {
+            options.body = body;
+        }
+    }
+
+    if (Object.keys(qs).length) {
+        options.qs = qs;
+    }
+
+    // Handle binary downloads
+    if (additionalOptions?.encoding === null) {
+        options.encoding = null;
+    }
+    if (additionalOptions?.json === false) {
+        options.json = false;
+    }
+
+    try {
+        const responseData = await this.helpers.request!(options);
+
+        // Don't check error status for binary downloads
+        if (additionalOptions?.json !== false) {
+            throwOnErrorStatus.call(this, responseData as IDataObject);
+        }
+
+        return responseData;
+    } catch (error) {
+        const errorData = (error as any).cause?.data;
+        const args = errorData
+            ? {
+                message: errorData.message || 'The Zoho Bigin API returned an error.',
                 description: JSON.stringify(errorData, null, 2),
             }
             : undefined;
