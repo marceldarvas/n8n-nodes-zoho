@@ -15,10 +15,14 @@ export const contactsOperations: INodeProperties[] = [
 			{ name: 'Get', value: 'getContact', description: 'Get a contact' },
 			{ name: 'Create', value: 'createContact', description: 'Create a contact' },
 			{ name: 'Update', value: 'updateContact', description: 'Update a contact' },
+			{ name: 'Upsert', value: 'upsertContact', description: 'Create or update a contact (idempotent)' },
 			{ name: 'Delete', value: 'deleteContact', description: 'Delete a contact' },
 			{ name: 'Search', value: 'searchContacts', description: 'Search contacts' },
 			{ name: 'Execute COQL Query', value: 'executeCOQL', description: 'Execute a COQL query for advanced filtering' },
+			{ name: 'Get Deleted Records', value: 'getDeletedRecords', description: 'Get deleted contacts with metadata' },
 			{ name: 'Get Fields', value: 'getFields', description: 'Get metadata for contact fields' },
+			{ name: 'Get Modules', value: 'getModules', description: 'Get all available modules' },
+			{ name: 'Get Organization', value: 'getOrganization', description: 'Get organization information' },
 			{ name: 'Bulk Create', value: 'bulkCreateContacts', description: 'Create multiple contacts' },
 			{ name: 'Bulk Update', value: 'bulkUpdateContacts', description: 'Update multiple contacts' },
 			{ name: 'Get Related Records', value: 'getRelatedRecords', description: 'Get records related to a contact' },
@@ -74,7 +78,7 @@ export const contactsFields: INodeProperties[] = [
 		description: 'Last name of the contact (required)',
 	},
 
-	// Create/Update - Additional Fields
+	// Create/Update/Upsert - Additional Fields
 	{
 		displayName: 'Additional Fields',
 		name: 'additionalFields',
@@ -84,7 +88,7 @@ export const contactsFields: INodeProperties[] = [
 		displayOptions: {
 			show: {
 				resource: ['contact'],
-				operation: ['createContact', 'updateContact'],
+				operation: ['createContact', 'updateContact', 'upsertContact'],
 			},
 		},
 		options: [
@@ -169,7 +173,7 @@ export const contactsFields: INodeProperties[] = [
 		displayOptions: {
 			show: {
 				resource: ['contact'],
-				operation: ['createContact', 'updateContact'],
+				operation: ['createContact', 'updateContact', 'upsertContact'],
 			},
 		},
 		options: [
@@ -215,6 +219,127 @@ export const contactsFields: INodeProperties[] = [
 				],
 			},
 		],
+	},
+
+	// GDPR Compliance - Data Processing Basis Details
+	{
+		displayName: 'GDPR Compliance',
+		name: 'gdprCompliance',
+		type: 'fixedCollection',
+		default: {},
+		placeholder: 'Add GDPR Data Processing Basis',
+		displayOptions: {
+			show: {
+				resource: ['contact'],
+				operation: ['createContact', 'updateContact', 'upsertContact'],
+			},
+		},
+		description: 'GDPR data processing basis details for this contact (EU compliance)',
+		options: [
+			{
+				displayName: 'Data Processing Details',
+				name: 'dataProcessingDetails',
+				values: [
+					{
+						displayName: 'Data Processing Basis',
+						name: 'Data_Processing_Basis',
+						type: 'options',
+						typeOptions: {
+							loadOptionsMethod: 'getDataProcessingBasisOptions',
+						},
+						default: '',
+						description: 'Legal basis for processing personal data (GDPR Article 6)',
+					},
+					{
+						displayName: 'Contact Through Email',
+						name: 'Contact_Through_Email',
+						type: 'boolean',
+						default: false,
+						description: 'Whether contact can be reached via email',
+					},
+					{
+						displayName: 'Contact Through Phone',
+						name: 'Contact_Through_Phone',
+						type: 'boolean',
+						default: false,
+						description: 'Whether contact can be reached via phone',
+					},
+					{
+						displayName: 'Contact Through Survey',
+						name: 'Contact_Through_Survey',
+						type: 'boolean',
+						default: false,
+						description: 'Whether contact can be reached via survey',
+					},
+					{
+						displayName: 'Lawful Reason',
+						name: 'Lawful_Reason',
+						type: 'string',
+						default: '',
+						description: 'Additional lawful reason for data processing',
+					},
+					{
+						displayName: 'Consent Remarks',
+						name: 'Consent_Remarks',
+						type: 'string',
+						typeOptions: {
+							rows: 3,
+						},
+						default: '',
+						description: 'Additional remarks about consent',
+					},
+					{
+						displayName: 'Consent Date',
+						name: 'Consent_Date',
+						type: 'dateTime',
+						default: '',
+						description: 'Date when consent was obtained (ISO 8601 format)',
+					},
+				],
+			},
+		],
+	},
+
+	// ========================================
+	// Upsert Operation Parameters
+	// ========================================
+	// Upsert - Last Name (required)
+	{
+		displayName: 'Last Name',
+		name: 'lastName',
+		type: 'string',
+		required: true,
+		displayOptions: {
+			show: {
+				resource: ['contact'],
+				operation: ['upsertContact'],
+			},
+		},
+		default: '',
+		description: 'Last name of the contact (required for upsert)',
+	},
+
+	// Upsert - Duplicate Check Fields
+	{
+		displayName: 'Duplicate Check Fields',
+		name: 'duplicateCheckFields',
+		type: 'multiOptions',
+		required: true,
+		displayOptions: {
+			show: {
+				resource: ['contact'],
+				operation: ['upsertContact'],
+			},
+		},
+		options: [
+			{ name: 'Email', value: 'Email' },
+			{ name: 'Phone', value: 'Phone' },
+			{ name: 'Mobile', value: 'Mobile' },
+			{ name: 'Last Name', value: 'Last_Name' },
+			{ name: 'First Name + Last Name', value: 'First_Name,Last_Name' },
+		],
+		default: ['Email'],
+		description: 'Fields to use for duplicate detection. If a record with matching values exists, it will be updated; otherwise, a new record will be created.',
 	},
 
 	// Filters for list/search
@@ -287,6 +412,29 @@ export const contactsFields: INodeProperties[] = [
 				],
 			},
 		],
+	},
+
+	// Get Deleted Records - Pagination
+	...paginationFields('contact', 'getDeletedRecords'),
+
+	// Get Deleted Records - Deletion Type
+	{
+		displayName: 'Deletion Type',
+		name: 'deletionType',
+		type: 'options',
+		displayOptions: {
+			show: {
+				resource: ['contact'],
+				operation: ['getDeletedRecords'],
+			},
+		},
+		options: [
+			{ name: 'All', value: 'all', description: 'All deleted records' },
+			{ name: 'Recycle Bin', value: 'recycle', description: 'Records in recycle bin (recoverable)' },
+			{ name: 'Permanent', value: 'permanent', description: 'Permanently deleted records' },
+		],
+		default: 'all',
+		description: 'Type of deleted records to retrieve',
 	},
 
 	// Bulk operations - Contacts Data (JSON)

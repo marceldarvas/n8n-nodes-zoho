@@ -16,6 +16,11 @@ export const tasksOperations: INodeProperties[] = [
 			{ name: 'Create', value: 'createTask', description: 'Create a task' },
 			{ name: 'Update', value: 'updateTask', description: 'Update a task' },
 			{ name: 'Delete', value: 'deleteTask', description: 'Delete a task' },
+			{ name: 'Upsert', value: 'upsertTask', description: 'Create or update a task (idempotent)' },
+			{ name: 'Get Deleted Records', value: 'getDeletedRecords', description: 'Get deleted tasks with metadata' },
+			{ name: 'Get Fields', value: 'getFields', description: 'Get metadata for task fields' },
+			{ name: 'Get Modules', value: 'getModules', description: 'Get all available modules' },
+			{ name: 'Get Organization', value: 'getOrganization', description: 'Get organization information' },
 		],
 		default: 'listTasks',
 	},
@@ -50,7 +55,7 @@ export const tasksFields: INodeProperties[] = [
 		displayOptions: {
 			show: {
 				resource: ['task'],
-				operation: ['createTask'],
+				operation: ['createTask', 'upsertTask'],
 			},
 		},
 		default: '',
@@ -67,7 +72,7 @@ export const tasksFields: INodeProperties[] = [
 		displayOptions: {
 			show: {
 				resource: ['task'],
-				operation: ['createTask', 'updateTask'],
+				operation: ['createTask', 'updateTask', 'upsertTask'],
 			},
 		},
 		options: [
@@ -200,5 +205,49 @@ export const tasksFields: INodeProperties[] = [
 				],
 			},
 		],
+	},
+
+	// Upsert operation - Duplicate Check Fields
+	{
+		displayName: 'Duplicate Check Fields',
+		name: 'duplicateCheckFields',
+		type: 'multiOptions',
+		required: true,
+		displayOptions: {
+			show: {
+				resource: ['task'],
+				operation: ['upsertTask'],
+			},
+		},
+		options: [
+			{ name: 'Subject', value: 'Subject' },
+			{ name: 'Due Date', value: 'Due_Date' },
+			{ name: 'Related To', value: 'Related_To' },
+		],
+		default: ['Subject'],
+		description: 'Fields to use for duplicate detection. If a task with matching values exists, it will be updated; otherwise, a new task will be created.',
+	},
+
+	// Get Deleted Records - Pagination
+	...paginationFields('task', 'getDeletedRecords'),
+
+	// Get Deleted Records - Deletion Type
+	{
+		displayName: 'Deletion Type',
+		name: 'deletionType',
+		type: 'options',
+		displayOptions: {
+			show: {
+				resource: ['task'],
+				operation: ['getDeletedRecords'],
+			},
+		},
+		options: [
+			{ name: 'All', value: 'all', description: 'All deleted records' },
+			{ name: 'Recycle Bin', value: 'recycle', description: 'Records in recycle bin (recoverable)' },
+			{ name: 'Permanent', value: 'permanent', description: 'Permanently deleted records' },
+		],
+		default: 'all',
+		description: 'Type of deleted records to retrieve',
 	},
 ];
