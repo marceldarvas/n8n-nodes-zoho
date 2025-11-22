@@ -15,6 +15,40 @@ import type {
 } from './types';
 
 /**
+ * Interface for objects with n8n logger support
+ */
+interface WithLogger {
+    logger: {
+        log: (level: string, message: string, meta?: unknown) => void;
+        warn: (message: string, meta?: unknown) => void;
+    };
+}
+
+/**
+ * Type guard to check if context has a logger property
+ */
+function hasLogger(context: unknown): context is WithLogger {
+    if (typeof context !== 'object' || context === null || !('logger' in context)) {
+        return false;
+    }
+
+    const contextWithLogger = context as { logger?: unknown };
+    const logger = contextWithLogger.logger;
+
+    if (typeof logger !== 'object' || logger === null) {
+        return false;
+    }
+
+    const loggerObj = logger as Record<string, unknown>;
+    return (
+        'log' in loggerObj &&
+        'warn' in loggerObj &&
+        typeof loggerObj.log === 'function' &&
+        typeof loggerObj.warn === 'function'
+    );
+}
+
+/**
  * Check Zoho API response for error status and throw appropriate error
  * @param responseData - The API response data to check
  * @throws {NodeOperationError} When the response contains an error status
@@ -337,16 +371,33 @@ export interface OperationMetrics {
 
 /**
  * Log operation metrics for monitoring and debugging
+ * 
+ * @param context - n8n execution context (optional). When undefined, falls back to console.log for logging.
  * @param metrics - Operation metrics to log
+ * 
+ * **Logging Behavior:**
+ * - If context has a logger, uses n8n's built-in logging system
+ * - Otherwise, falls back to console.log for compatibility
+ * - Only logs when duration > 1000ms, operation failed, or retries occurred
  */
-function logMetrics(metrics: OperationMetrics): void {
+function logMetrics(
+    context: IExecuteFunctions | IHookFunctions | ILoadOptionsFunctions | undefined,
+    metrics: OperationMetrics,
+): void {
     // Only log if duration is significant or if operation failed
     if (metrics.duration > 1000 || !metrics.success || metrics.retryCount > 0) {
-        console.log(JSON.stringify({
+        const logMessage = {
             level: metrics.success ? 'info' : 'error',
             message: 'Bigin API operation',
             ...metrics,
-        }));
+        };
+
+        // Use n8n's logger if available, otherwise fall back to console
+        if (hasLogger(context)) {
+            context.logger.log(logMessage.level, logMessage.message, logMessage);
+        } else {
+            console.log(JSON.stringify(logMessage));
+        }
     }
 }
 
@@ -374,7 +425,7 @@ async function executeWithRetry(
             const responseData = await context.helpers.request!(options);
 
             // Log successful operation metrics
-            logMetrics({
+            logMetrics(context, {
                 operation: 'api_request',
                 endpoint: options.url || '',
                 method: options.method || 'GET',
@@ -415,7 +466,7 @@ async function executeWithRetry(
             }
 
             // Log retry attempt
-            console.log(JSON.stringify({
+            const retryLogMessage = {
                 level: 'warn',
                 message: 'Retrying Bigin API request',
                 endpoint: options.url,
@@ -423,7 +474,14 @@ async function executeWithRetry(
                 maxRetries,
                 backoffDelay,
                 statusCode,
-            }));
+            };
+
+            // Use n8n's logger if available, otherwise fall back to console
+            if (hasLogger(context)) {
+                context.logger.warn(retryLogMessage.message, retryLogMessage);
+            } else {
+                console.warn(JSON.stringify(retryLogMessage));
+            }
 
             // Wait before retrying
             await new Promise(resolve => setTimeout(resolve, backoffDelay));
@@ -431,7 +489,7 @@ async function executeWithRetry(
     }
 
     // Log failed operation metrics
-    logMetrics({
+    logMetrics(context, {
         operation: 'api_request',
         endpoint: options.url || '',
         method: options.method || 'GET',

@@ -897,6 +897,128 @@ export class ZohoBigin implements INodeType {
 	}
 
 	/**
+	 * Get deleted records for a specific module
+	 *
+	 * This is a shared operation that retrieves deleted records from any Bigin module.
+	 * Supports both paginated and single-page retrieval with deletion type filtering.
+	 *
+	 * **Deletion Types:**
+	 * - `all`: All deleted records (default)
+	 * - `recycle`: Records in recycle bin
+	 * - `permanent`: Permanently deleted records
+	 *
+	 * @param context - The IExecuteFunctions instance
+	 * @param itemIndex - The index of the current input item
+	 * @param moduleName - The Bigin module name (e.g., 'Contacts', 'Deals', 'Accounts')
+	 * @returns Array of deleted record objects
+	 */
+	private static async getDeletedRecords(
+		context: IExecuteFunctions,
+		itemIndex: number,
+		moduleName: string,
+	): Promise<IDataObject[]> {
+		const returnAll = context.getNodeParameter('returnAll', itemIndex, false) as boolean;
+		const deletionType = context.getNodeParameter('deletionType', itemIndex, 'all') as string;
+
+		const qs: IDataObject = {
+			type: deletionType,
+		};
+
+		if (returnAll) {
+			// Fetch all deleted records with pagination
+			let allRecords: IDataObject[] = [];
+			let page = 1;
+			let moreRecords = true;
+
+			while (moreRecords) {
+				qs.page = page;
+				qs.per_page = 200; // Max allowed per page
+
+				const response = await zohoBiginApiRequest.call(
+					context,
+					'GET',
+					`/${moduleName}/deleted`,
+					{},
+					qs,
+				);
+
+				const records = response.data || [];
+				allRecords = allRecords.concat(records);
+
+				moreRecords = response.info?.more_records || false;
+				page++;
+			}
+
+			return allRecords;
+		} else {
+			// Fetch single page
+			const limit = context.getNodeParameter('limit', itemIndex, 50) as number;
+			qs.page = 1;
+			qs.per_page = limit;
+
+			const response = await zohoBiginApiRequest.call(
+				context,
+				'GET',
+				`/${moduleName}/deleted`,
+				{},
+				qs,
+			);
+
+			return response.data || [];
+		}
+	}
+
+	/**
+	 * Get all available modules (system-wide operation)
+	 *
+	 * Retrieves the list of all available modules in the Bigin organization.
+	 * Results are cached for 1 hour to minimize API calls.
+	 *
+	 * @param context - The IExecuteFunctions instance
+	 * @returns Array of module objects with metadata
+	 */
+	private static async getModules(context: IExecuteFunctions): Promise<IDataObject[]> {
+		const cacheKey = 'modules:all';
+		const result = await ZohoBigin.getCachedMetadata(cacheKey, async () => {
+			const response = await zohoBiginApiRequest.call(
+				context,
+				'GET',
+				'/settings/modules',
+				{},
+				{},
+			);
+			return { modules: response.modules || [] };
+		});
+
+		return result.modules as IDataObject[];
+	}
+
+	/**
+	 * Get organization information (system-wide operation)
+	 *
+	 * Retrieves organization-level information including settings, preferences, and metadata.
+	 * Results are cached for 1 hour to minimize API calls.
+	 *
+	 * @param context - The IExecuteFunctions instance
+	 * @returns Array of organization information objects
+	 */
+	private static async getOrganization(context: IExecuteFunctions): Promise<IDataObject[]> {
+		const cacheKey = 'organization:info';
+		const result = await ZohoBigin.getCachedMetadata(cacheKey, async () => {
+			const response = await zohoBiginApiRequest.call(
+				context,
+				'GET',
+				'/org',
+				{},
+				{},
+			);
+			return { org: response.org || [] };
+		});
+
+		return result.org as IDataObject[];
+	}
+
+	/**
 	 * Handle Pipeline (Deals) operations
 	 *
 	 * Provides comprehensive pipeline/deal management including list, get, create, update, delete,
@@ -1132,55 +1254,7 @@ export class ZohoBigin implements INodeType {
 			return response.data || [];
 
 		} else if (operation === 'getDeletedRecords') {
-			const returnAll = context.getNodeParameter('returnAll', itemIndex, false) as boolean;
-			const deletionType = context.getNodeParameter('deletionType', itemIndex, 'all') as string;
-
-			const qs: IDataObject = {
-				type: deletionType,
-			};
-
-			if (returnAll) {
-				// Fetch all deleted records with pagination
-				let allRecords: IDataObject[] = [];
-				let page = 1;
-				let moreRecords = true;
-
-				while (moreRecords) {
-					qs.page = page;
-					qs.per_page = 200; // Max allowed per page
-
-					const response = await zohoBiginApiRequest.call(
-						context,
-						'GET',
-						'/Deals/deleted',
-						{},
-						qs,
-					);
-
-					const records = response.data || [];
-					allRecords = allRecords.concat(records);
-
-					moreRecords = response.info?.more_records || false;
-					page++;
-				}
-
-				return allRecords;
-			} else {
-				// Fetch single page
-				const limit = context.getNodeParameter('limit', itemIndex, 50) as number;
-				qs.page = 1;
-				qs.per_page = limit;
-
-				const response = await zohoBiginApiRequest.call(
-					context,
-					'GET',
-					'/Deals/deleted',
-					{},
-					qs,
-				);
-
-				return response.data || [];
-			}
+			return await ZohoBigin.getDeletedRecords(context, itemIndex, 'Deals');
 
 		} else if (operation === 'bulkCreatePipelines') {
 			const pipelinesDataRaw = context.getNodeParameter('pipelinesData', itemIndex) as string;
@@ -1341,36 +1415,10 @@ export class ZohoBigin implements INodeType {
 			return result.fields as IDataObject[];
 
 		} else if (operation === 'getModules') {
-			// Get all available modules (system-wide operation)
-			const cacheKey = 'modules:all';
-			const result = await ZohoBigin.getCachedMetadata(cacheKey, async () => {
-				const response = await zohoBiginApiRequest.call(
-					context,
-					'GET',
-					'/settings/modules',
-					{},
-					{},
-				);
-				return { modules: response.modules || [] };
-			});
-
-			return result.modules as IDataObject[];
+			return await ZohoBigin.getModules(context);
 
 		} else if (operation === 'getOrganization') {
-			// Get organization information (system-wide operation)
-			const cacheKey = 'organization:info';
-			const result = await ZohoBigin.getCachedMetadata(cacheKey, async () => {
-				const response = await zohoBiginApiRequest.call(
-					context,
-					'GET',
-					'/org',
-					{},
-					{},
-				);
-				return { org: response.org || [] };
-			});
-
-			return result.org as IDataObject[];
+			return await ZohoBigin.getOrganization(context);
 
 		} else if (operation === 'getRelatedRecords') {
 			const recordId = context.getNodeParameter('recordId', itemIndex) as string;
@@ -1872,55 +1920,7 @@ export class ZohoBigin implements INodeType {
 			return response.data || [];
 
 		} else if (operation === 'getDeletedRecords') {
-			const returnAll = context.getNodeParameter('returnAll', itemIndex, false) as boolean;
-			const deletionType = context.getNodeParameter('deletionType', itemIndex, 'all') as string;
-
-			const qs: IDataObject = {
-				type: deletionType,
-			};
-
-			if (returnAll) {
-				// Fetch all deleted records with pagination
-				let allRecords: IDataObject[] = [];
-				let page = 1;
-				let moreRecords = true;
-
-				while (moreRecords) {
-					qs.page = page;
-					qs.per_page = 200; // Max allowed per page
-
-					const response = await zohoBiginApiRequest.call(
-						context,
-						'GET',
-						'/Contacts/deleted',
-						{},
-						qs,
-					);
-
-					const records = response.data || [];
-					allRecords = allRecords.concat(records);
-
-					moreRecords = response.info?.more_records || false;
-					page++;
-				}
-
-				return allRecords;
-			} else {
-				// Fetch single page
-				const limit = context.getNodeParameter('limit', itemIndex, 50) as number;
-				qs.page = 1;
-				qs.per_page = limit;
-
-				const response = await zohoBiginApiRequest.call(
-					context,
-					'GET',
-					'/Contacts/deleted',
-					{},
-					qs,
-				);
-
-				return response.data || [];
-			}
+			return await ZohoBigin.getDeletedRecords(context, itemIndex, 'Contacts');
 
 		} else if (operation === 'bulkCreateContacts') {
 			const contactsDataRaw = context.getNodeParameter('contactsData', itemIndex) as string;
@@ -2067,36 +2067,10 @@ export class ZohoBigin implements INodeType {
 			return result.fields as IDataObject[];
 
 		} else if (operation === 'getModules') {
-			// Get all available modules (system-wide operation)
-			const cacheKey = 'modules:all';
-			const result = await ZohoBigin.getCachedMetadata(cacheKey, async () => {
-				const response = await zohoBiginApiRequest.call(
-					context,
-					'GET',
-					'/settings/modules',
-					{},
-					{},
-				);
-				return { modules: response.modules || [] };
-			});
-
-			return result.modules as IDataObject[];
+			return await ZohoBigin.getModules(context);
 
 		} else if (operation === 'getOrganization') {
-			// Get organization information (system-wide operation)
-			const cacheKey = 'organization:info';
-			const result = await ZohoBigin.getCachedMetadata(cacheKey, async () => {
-				const response = await zohoBiginApiRequest.call(
-					context,
-					'GET',
-					'/org',
-					{},
-					{},
-				);
-				return { org: response.org || [] };
-			});
-
-			return result.org as IDataObject[];
+			return await ZohoBigin.getOrganization(context);
 
 		} else if (operation === 'getRelatedRecords') {
 			const recordId = context.getNodeParameter('recordId', itemIndex) as string;
@@ -2630,55 +2604,7 @@ export class ZohoBigin implements INodeType {
 			return response.data || [];
 
 		} else if (operation === 'getDeletedRecords') {
-			const returnAll = context.getNodeParameter('returnAll', itemIndex, false) as boolean;
-			const deletionType = context.getNodeParameter('deletionType', itemIndex, 'all') as string;
-
-			const qs: IDataObject = {
-				type: deletionType,
-			};
-
-			if (returnAll) {
-				// Fetch all deleted records with pagination
-				let allRecords: IDataObject[] = [];
-				let page = 1;
-				let moreRecords = true;
-
-				while (moreRecords) {
-					qs.page = page;
-					qs.per_page = 200; // Max allowed per page
-
-					const response = await zohoBiginApiRequest.call(
-						context,
-						'GET',
-						'/Accounts/deleted',
-						{},
-						qs,
-					);
-
-					const records = response.data || [];
-					allRecords = allRecords.concat(records);
-
-					moreRecords = response.info?.more_records || false;
-					page++;
-				}
-
-				return allRecords;
-			} else {
-				// Fetch single page
-				const limit = context.getNodeParameter('limit', itemIndex, 50) as number;
-				qs.page = 1;
-				qs.per_page = limit;
-
-				const response = await zohoBiginApiRequest.call(
-					context,
-					'GET',
-					'/Accounts/deleted',
-					{},
-					qs,
-				);
-
-				return response.data || [];
-			}
+			return await ZohoBigin.getDeletedRecords(context, itemIndex, 'Accounts');
 
 		} else if (operation === 'bulkCreateAccounts') {
 			const accountsDataRaw = context.getNodeParameter('accountsData', itemIndex) as string;
@@ -2825,36 +2751,10 @@ export class ZohoBigin implements INodeType {
 			return result.fields as IDataObject[];
 
 		} else if (operation === 'getModules') {
-			// Get all available modules (system-wide operation)
-			const cacheKey = 'modules:all';
-			const result = await ZohoBigin.getCachedMetadata(cacheKey, async () => {
-				const response = await zohoBiginApiRequest.call(
-					context,
-					'GET',
-					'/settings/modules',
-					{},
-					{},
-				);
-				return { modules: response.modules || [] };
-			});
-
-			return result.modules as IDataObject[];
+			return await ZohoBigin.getModules(context);
 
 		} else if (operation === 'getOrganization') {
-			// Get organization information (system-wide operation)
-			const cacheKey = 'organization:info';
-			const result = await ZohoBigin.getCachedMetadata(cacheKey, async () => {
-				const response = await zohoBiginApiRequest.call(
-					context,
-					'GET',
-					'/org',
-					{},
-					{},
-				);
-				return { org: response.org || [] };
-			});
-
-			return result.org as IDataObject[];
+			return await ZohoBigin.getOrganization(context);
 
 		} else if (operation === 'getRelatedRecords') {
 			const recordId = context.getNodeParameter('recordId', itemIndex) as string;
@@ -3370,55 +3270,7 @@ export class ZohoBigin implements INodeType {
 			return response.data || [];
 
 		} else if (operation === 'getDeletedRecords') {
-			const returnAll = context.getNodeParameter('returnAll', itemIndex, false) as boolean;
-			const deletionType = context.getNodeParameter('deletionType', itemIndex, 'all') as string;
-
-			const qs: IDataObject = {
-				type: deletionType,
-			};
-
-			if (returnAll) {
-				// Fetch all deleted records with pagination
-				let allRecords: IDataObject[] = [];
-				let page = 1;
-				let moreRecords = true;
-
-				while (moreRecords) {
-					qs.page = page;
-					qs.per_page = 200; // Max allowed per page
-
-					const response = await zohoBiginApiRequest.call(
-						context,
-						'GET',
-						'/Products/deleted',
-						{},
-						qs,
-					);
-
-					const records = response.data || [];
-					allRecords = allRecords.concat(records);
-
-					moreRecords = response.info?.more_records || false;
-					page++;
-				}
-
-				return allRecords;
-			} else {
-				// Fetch single page
-				const limit = context.getNodeParameter('limit', itemIndex, 50) as number;
-				qs.page = 1;
-				qs.per_page = limit;
-
-				const response = await zohoBiginApiRequest.call(
-					context,
-					'GET',
-					'/Products/deleted',
-					{},
-					qs,
-				);
-
-				return response.data || [];
-			}
+			return await ZohoBigin.getDeletedRecords(context, itemIndex, 'Products');
 
 		} else if (operation === 'bulkCreateProducts') {
 			const productsDataRaw = context.getNodeParameter('productsData', itemIndex) as string;
@@ -3565,36 +3417,10 @@ export class ZohoBigin implements INodeType {
 			return result.fields as IDataObject[];
 
 		} else if (operation === 'getModules') {
-			// Get all available modules (system-wide operation)
-			const cacheKey = 'modules:all';
-			const result = await ZohoBigin.getCachedMetadata(cacheKey, async () => {
-				const response = await zohoBiginApiRequest.call(
-					context,
-					'GET',
-					'/settings/modules',
-					{},
-					{},
-				);
-				return { modules: response.modules || [] };
-			});
-
-			return result.modules as IDataObject[];
+			return await ZohoBigin.getModules(context);
 
 		} else if (operation === 'getOrganization') {
-			// Get organization information (system-wide operation)
-			const cacheKey = 'organization:info';
-			const result = await ZohoBigin.getCachedMetadata(cacheKey, async () => {
-				const response = await zohoBiginApiRequest.call(
-					context,
-					'GET',
-					'/org',
-					{},
-					{},
-				);
-				return { org: response.org || [] };
-			});
-
-			return result.org as IDataObject[];
+			return await ZohoBigin.getOrganization(context);
 
 		} else if (operation === 'uploadPhoto') {
 			const recordId = context.getNodeParameter('recordId', itemIndex) as string;
@@ -3877,55 +3703,7 @@ export class ZohoBigin implements INodeType {
 			return response.data || [];
 
 		} else if (operation === 'getDeletedRecords') {
-			const returnAll = context.getNodeParameter('returnAll', itemIndex, false) as boolean;
-			const deletionType = context.getNodeParameter('deletionType', itemIndex, 'all') as string;
-
-			const qs: IDataObject = {
-				type: deletionType,
-			};
-
-			if (returnAll) {
-				// Fetch all deleted records with pagination
-				let allRecords: IDataObject[] = [];
-				let page = 1;
-				let moreRecords = true;
-
-				while (moreRecords) {
-					qs.page = page;
-					qs.per_page = 200; // Max allowed per page
-
-					const response = await zohoBiginApiRequest.call(
-						context,
-						'GET',
-						'/Tasks/deleted',
-						{},
-						qs,
-					);
-
-					const records = response.data || [];
-					allRecords = allRecords.concat(records);
-
-					moreRecords = response.info?.more_records || false;
-					page++;
-				}
-
-				return allRecords;
-			} else {
-				// Fetch single page
-				const limit = context.getNodeParameter('limit', itemIndex, 50) as number;
-				qs.page = 1;
-				qs.per_page = limit;
-
-				const response = await zohoBiginApiRequest.call(
-					context,
-					'GET',
-					'/Tasks/deleted',
-					{},
-					qs,
-				);
-
-				return response.data || [];
-			}
+			return await ZohoBigin.getDeletedRecords(context, itemIndex, 'Tasks');
 
 		} else if (operation === 'getFields') {
 			// Use cached metadata to reduce API calls
@@ -3944,36 +3722,10 @@ export class ZohoBigin implements INodeType {
 			return result.fields as IDataObject[];
 
 		} else if (operation === 'getModules') {
-			// Get all available modules (system-wide operation)
-			const cacheKey = 'modules:all';
-			const result = await ZohoBigin.getCachedMetadata(cacheKey, async () => {
-				const response = await zohoBiginApiRequest.call(
-					context,
-					'GET',
-					'/settings/modules',
-					{},
-					{},
-				);
-				return { modules: response.modules || [] };
-			});
-
-			return result.modules as IDataObject[];
+			return await ZohoBigin.getModules(context);
 
 		} else if (operation === 'getOrganization') {
-			// Get organization information (system-wide operation)
-			const cacheKey = 'organization:info';
-			const result = await ZohoBigin.getCachedMetadata(cacheKey, async () => {
-				const response = await zohoBiginApiRequest.call(
-					context,
-					'GET',
-					'/org',
-					{},
-					{},
-				);
-				return { org: response.org || [] };
-			});
-
-			return result.org as IDataObject[];
+			return await ZohoBigin.getOrganization(context);
 		}
 
 		throw new NodeOperationError(
@@ -4178,55 +3930,7 @@ export class ZohoBigin implements INodeType {
 			return response.data || [];
 
 		} else if (operation === 'getDeletedRecords') {
-			const returnAll = context.getNodeParameter('returnAll', itemIndex, false) as boolean;
-			const deletionType = context.getNodeParameter('deletionType', itemIndex, 'all') as string;
-
-			const qs: IDataObject = {
-				type: deletionType,
-			};
-
-			if (returnAll) {
-				// Fetch all deleted records with pagination
-				let allRecords: IDataObject[] = [];
-				let page = 1;
-				let moreRecords = true;
-
-				while (moreRecords) {
-					qs.page = page;
-					qs.per_page = 200; // Max allowed per page
-
-					const response = await zohoBiginApiRequest.call(
-						context,
-						'GET',
-						'/Events/deleted',
-						{},
-						qs,
-					);
-
-					const records = response.data || [];
-					allRecords = allRecords.concat(records);
-
-					moreRecords = response.info?.more_records || false;
-					page++;
-				}
-
-				return allRecords;
-			} else {
-				// Fetch single page
-				const limit = context.getNodeParameter('limit', itemIndex, 50) as number;
-				qs.page = 1;
-				qs.per_page = limit;
-
-				const response = await zohoBiginApiRequest.call(
-					context,
-					'GET',
-					'/Events/deleted',
-					{},
-					qs,
-				);
-
-				return response.data || [];
-			}
+			return await ZohoBigin.getDeletedRecords(context, itemIndex, 'Events');
 
 		} else if (operation === 'getFields') {
 			// Use cached metadata to reduce API calls
@@ -4245,36 +3949,10 @@ export class ZohoBigin implements INodeType {
 			return result.fields as IDataObject[];
 
 		} else if (operation === 'getModules') {
-			// Get all available modules (system-wide operation)
-			const cacheKey = 'modules:all';
-			const result = await ZohoBigin.getCachedMetadata(cacheKey, async () => {
-				const response = await zohoBiginApiRequest.call(
-					context,
-					'GET',
-					'/settings/modules',
-					{},
-					{},
-				);
-				return { modules: response.modules || [] };
-			});
-
-			return result.modules as IDataObject[];
+			return await ZohoBigin.getModules(context);
 
 		} else if (operation === 'getOrganization') {
-			// Get organization information (system-wide operation)
-			const cacheKey = 'organization:info';
-			const result = await ZohoBigin.getCachedMetadata(cacheKey, async () => {
-				const response = await zohoBiginApiRequest.call(
-					context,
-					'GET',
-					'/org',
-					{},
-					{},
-				);
-				return { org: response.org || [] };
-			});
-
-			return result.org as IDataObject[];
+			return await ZohoBigin.getOrganization(context);
 		}
 
 		throw new NodeOperationError(
