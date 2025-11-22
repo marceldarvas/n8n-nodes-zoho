@@ -337,16 +337,27 @@ export interface OperationMetrics {
 
 /**
  * Log operation metrics for monitoring and debugging
+ * @param context - n8n execution context (optional, for logger access)
  * @param metrics - Operation metrics to log
  */
-function logMetrics(metrics: OperationMetrics): void {
+function logMetrics(
+    context: IExecuteFunctions | IHookFunctions | ILoadOptionsFunctions | undefined,
+    metrics: OperationMetrics,
+): void {
     // Only log if duration is significant or if operation failed
     if (metrics.duration > 1000 || !metrics.success || metrics.retryCount > 0) {
-        console.log(JSON.stringify({
+        const logMessage = {
             level: metrics.success ? 'info' : 'error',
             message: 'Bigin API operation',
             ...metrics,
-        }));
+        };
+
+        // Use n8n's logger if available, otherwise fall back to console
+        if (context && 'logger' in context && typeof (context as any).logger?.log === 'function') {
+            (context as any).logger.log(logMessage.level, logMessage.message, logMessage);
+        } else {
+            console.log(JSON.stringify(logMessage));
+        }
     }
 }
 
@@ -374,7 +385,7 @@ async function executeWithRetry(
             const responseData = await context.helpers.request!(options);
 
             // Log successful operation metrics
-            logMetrics({
+            logMetrics(context, {
                 operation: 'api_request',
                 endpoint: options.url || '',
                 method: options.method || 'GET',
@@ -415,7 +426,7 @@ async function executeWithRetry(
             }
 
             // Log retry attempt
-            console.log(JSON.stringify({
+            const retryLogMessage = {
                 level: 'warn',
                 message: 'Retrying Bigin API request',
                 endpoint: options.url,
@@ -423,7 +434,14 @@ async function executeWithRetry(
                 maxRetries,
                 backoffDelay,
                 statusCode,
-            }));
+            };
+
+            // Use n8n's logger if available, otherwise fall back to console
+            if (context && 'logger' in context && typeof (context as any).logger?.warn === 'function') {
+                (context as any).logger.warn(retryLogMessage.message, retryLogMessage);
+            } else {
+                console.warn(JSON.stringify(retryLogMessage));
+            }
 
             // Wait before retrying
             await new Promise(resolve => setTimeout(resolve, backoffDelay));
@@ -431,7 +449,7 @@ async function executeWithRetry(
     }
 
     // Log failed operation metrics
-    logMetrics({
+    logMetrics(context, {
         operation: 'api_request',
         endpoint: options.url || '',
         method: options.method || 'GET',
