@@ -321,6 +321,150 @@ export async function zohoCalendarApiRequest(
  * @throws {NodeApiError} When the API request fails
  * @see https://www.zoho.com/bigin/developer/docs/api/v1/
  */
+/**
+ * Interface for operation metrics tracking
+ */
+export interface OperationMetrics {
+    operation: string;
+    endpoint: string;
+    method: string;
+    duration: number;
+    success: boolean;
+    retryCount: number;
+    recordCount?: number;
+    timestamp: Date;
+}
+
+/**
+ * Log operation metrics for monitoring and debugging
+ * @param metrics - Operation metrics to log
+ */
+function logMetrics(metrics: OperationMetrics): void {
+    // Only log if duration is significant or if operation failed
+    if (metrics.duration > 1000 || !metrics.success || metrics.retryCount > 0) {
+        console.log(JSON.stringify({
+            level: metrics.success ? 'info' : 'error',
+            message: 'Bigin API operation',
+            ...metrics,
+        }));
+    }
+}
+
+/**
+ * Execute an HTTP request with automatic retry logic for rate limiting and transient errors.
+ * Implements exponential backoff strategy for retries.
+ *
+ * @param context - n8n execution context
+ * @param options - HTTP request options
+ * @param maxRetries - Maximum number of retry attempts (default: 3)
+ * @returns Promise resolving to the response data
+ * @throws {NodeApiError} When all retry attempts are exhausted
+ */
+async function executeWithRetry(
+    context: IExecuteFunctions | IHookFunctions | ILoadOptionsFunctions,
+    options: IRequestOptions,
+    maxRetries = 3,
+): Promise<any> {
+    let lastError: any;
+    let retryCount = 0;
+    const startTime = Date.now();
+
+    for (let attempt = 0; attempt < maxRetries; attempt++) {
+        try {
+            const responseData = await context.helpers.request!(options);
+
+            // Log successful operation metrics
+            logMetrics({
+                operation: 'api_request',
+                endpoint: options.url || '',
+                method: options.method || 'GET',
+                duration: Date.now() - startTime,
+                success: true,
+                retryCount,
+                timestamp: new Date(),
+            });
+
+            return responseData;
+        } catch (error: any) {
+            lastError = error;
+            retryCount = attempt + 1;
+
+            // Check if we should retry based on error type
+            const statusCode = error.statusCode || error.response?.statusCode;
+
+            // Don't retry on client errors (4xx), except for 429 (rate limit)
+            if (statusCode >= 400 && statusCode < 500 && statusCode !== 429) {
+                throw error;
+            }
+
+            // Don't retry on the last attempt
+            if (attempt === maxRetries - 1) {
+                break;
+            }
+
+            // Calculate backoff delay
+            let backoffDelay: number;
+
+            if (statusCode === 429) {
+                // For rate limiting, use Retry-After header if available
+                const retryAfter = error.response?.headers?.['retry-after'];
+                backoffDelay = retryAfter ? parseInt(retryAfter, 10) * 1000 : (attempt + 1) * 2000;
+            } else {
+                // For other errors, use exponential backoff: 1s, 2s, 4s
+                backoffDelay = Math.pow(2, attempt) * 1000;
+            }
+
+            // Log retry attempt
+            console.log(JSON.stringify({
+                level: 'warn',
+                message: 'Retrying Bigin API request',
+                endpoint: options.url,
+                attempt: attempt + 1,
+                maxRetries,
+                backoffDelay,
+                statusCode,
+            }));
+
+            // Wait before retrying
+            await new Promise(resolve => setTimeout(resolve, backoffDelay));
+        }
+    }
+
+    // Log failed operation metrics
+    logMetrics({
+        operation: 'api_request',
+        endpoint: options.url || '',
+        method: options.method || 'GET',
+        duration: Date.now() - startTime,
+        success: false,
+        retryCount,
+        timestamp: new Date(),
+    });
+
+    // All retries exhausted, throw the last error
+    throw lastError;
+}
+
+/**
+ * Make an authenticated API request to Zoho Bigin CRM API with retry logic and performance monitoring.
+ * Bigin API follows the CRM v2 API structure with JSON request/response format.
+ *
+ * **Performance Features:**
+ * - Automatic retry on rate limiting (HTTP 429) with exponential backoff
+ * - Retry on transient server errors (5xx) with exponential backoff
+ * - Operation metrics logging for monitoring and debugging
+ * - Respects Retry-After headers for rate limiting
+ *
+ * @param method - HTTP method (GET, POST, PUT, DELETE, etc.)
+ * @param endpoint - API endpoint path (e.g., '/Pipelines', '/Contacts/{id}')
+ * @param body - Request body data
+ * @param qs - Query string parameters
+ * @param headers - Additional headers to include in the request
+ * @param additionalOptions - Additional request options (formData, encoding, json, etc.)
+ * @returns Promise resolving to the API response data
+ * @throws {NodeApiError} When the API request fails after all retries
+ * @see https://www.zoho.com/bigin/developer/docs/api/v1/
+ */
 export async function zohoBiginApiRequest(
     this: IExecuteFunctions | IHookFunctions | ILoadOptionsFunctions,
     method: IHttpRequestMethods,
@@ -370,7 +514,8 @@ export async function zohoBiginApiRequest(
     }
 
     try {
-        const responseData = await this.helpers.request!(options);
+        // Use retry logic for all requests
+        const responseData = await executeWithRetry(this, options);
 
         // Don't check error status for binary downloads
         if (additionalOptions?.json !== false) {

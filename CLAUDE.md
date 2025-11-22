@@ -396,6 +396,225 @@ async function getAccessTokenData(/* ... */) {
 
 All API functions call `getAccessTokenData()` before making requests.
 
+## Dynamic Load Options & Field Metadata
+
+### Overview
+
+The Zoho Bigin node includes a **generalized field metadata system** that dynamically loads picklist options from Bigin's Settings API. This enables:
+- Dynamic dropdowns for standard fields (Lead_Source, Industry, Priority, etc.)
+- Custom field picklists (cf_custom_field_id)
+- Multi-select picklists
+- Localized display values (automatic language support)
+- 1-hour caching to minimize API calls
+
+### Required OAuth Scopes
+
+To access field metadata, ensure the following scope is included in `credentials/ZohoApi.credentials.ts`:
+```
+ZohoBigin.settings.fields.READ
+```
+or
+```
+ZohoBigin.settings.ALL
+```
+
+### Static Helper Method: `fetchFieldPicklistOptions`
+
+Located in `ZohoBigin.node.ts`, this **static helper method** fetches picklist values for any field in any module:
+
+```typescript
+private static async fetchFieldPicklistOptions(
+    context: ILoadOptionsFunctions,
+    moduleName: string,
+    fieldApiName: string,
+): Promise<INodePropertyOptions[]> {
+    // Fetches field metadata from /settings/fields?module={moduleName}
+    // Finds field by fieldApiName
+    // Extracts picklist values
+    // Caches for 1 hour
+    // Returns array of { name, value } options
+}
+```
+
+**Features:**
+- Caches results for 1 hour using `metadataCache`
+- Prioritizes `display_value` over `actual_value` for localization
+- Returns empty array if field not found (graceful degradation)
+- Logs errors without crashing
+
+### Adding Dynamic Dropdowns to Parameters
+
+#### Step 1: Create a Load Options Method
+
+In `ZohoBigin.node.ts`, add a method in the `methods.loadOptions` section:
+
+```typescript
+/**
+ * Load Lead Source options for Contacts
+ * Usage: loadOptionsMethod: 'getContactLeadSourceOptions'
+ */
+async getContactLeadSourceOptions(
+    this: ILoadOptionsFunctions,
+): Promise<INodePropertyOptions[]> {
+    return await ZohoBigin.fetchFieldPicklistOptions(this, 'Contacts', 'Lead_Source');
+},
+```
+
+#### Step 2: Use in Parameter Definition
+
+In your description file (e.g., `BiginContactsDescription.ts`):
+
+```typescript
+{
+    displayName: 'Lead Source',
+    name: 'Lead_Source',
+    type: 'options',
+    typeOptions: {
+        loadOptionsMethod: 'getContactLeadSourceOptions',
+    },
+    default: '',
+    description: 'Source of the lead (values loaded from Bigin)',
+},
+```
+
+### Common Use Cases
+
+#### Custom Fields
+
+For custom fields with picklist type:
+
+```typescript
+async getContactPizzaToppingOptions(
+    this: ILoadOptionsFunctions,
+): Promise<INodePropertyOptions[]> {
+    return await ZohoBigin.fetchFieldPicklistOptions(this, 'Contacts', 'cf_pizza_topping');
+},
+```
+
+#### Multi-Module Fields
+
+Different modules can have different options for the same field name:
+
+```typescript
+// Contacts Industry
+async getContactIndustryOptions(this: ILoadOptionsFunctions): Promise<INodePropertyOptions[]> {
+    return await ZohoBigin.fetchFieldPicklistOptions(this, 'Contacts', 'Industry');
+}
+
+// Accounts Industry (different values)
+async getAccountIndustryOptions(this: ILoadOptionsFunctions): Promise<INodePropertyOptions[]> {
+    return await ZohoBigin.fetchFieldPicklistOptions(this, 'Accounts', 'Industry');
+}
+```
+
+### Supported Modules
+
+The field metadata system works with all Bigin modules:
+- **Contacts** (`module=Contacts`)
+- **Accounts** (`module=Accounts`)
+- **Pipelines/Deals** (`module=Deals`)
+- **Products** (`module=Products`)
+- **Tasks** (`module=Tasks`)
+- **Events** (`module=Events`)
+- **Notes** (`module=Notes`)
+
+### Cache Management
+
+**Cache Key Format**: `fields:{ModuleName}:{FieldApiName}`
+**Example**: `fields:Contacts:Lead_Source`
+
+**Cache Duration**: 1 hour (3600000 milliseconds)
+
+**Cache Structure**:
+```typescript
+{
+    data: { options: INodePropertyOptions[] },
+    expiry: number // timestamp
+}
+```
+
+To clear cache (manual process):
+```typescript
+ZohoBigin.metadataCache.delete('fields:Contacts:Lead_Source');
+```
+
+### Localization
+
+The system automatically supports multiple languages:
+- **English**: "Not Applicable", "Legitimate Interests", "Contract"
+- **Hungarian**: "Nem alkalmazható", "Jogos érdek", "Szerződés"
+- **German**: "Nicht anwendbar", "Berechtigte Interessen", "Vertrag"
+- **French**: "Non applicable", "Intérêts légitimes", "Contrat"
+
+Values are determined by the Bigin account's language setting and fetched from `pick_list_values[].display_value`.
+
+### GDPR Example (Real Implementation)
+
+The GDPR Data Processing Basis field demonstrates this pattern:
+
+```typescript
+async getDataProcessingBasisOptions(
+    this: ILoadOptionsFunctions,
+): Promise<INodePropertyOptions[]> {
+    const options = await ZohoBigin.fetchFieldPicklistOptions(this, 'Contacts', 'Data_Processing_Basis');
+
+    // Fallback if field not found
+    if (options.length === 0) {
+        return [
+            { name: 'Not Applicable', value: 'Not Applicable' },
+            { name: 'Legitimate Interests', value: 'Legitimate Interests' },
+            // ... default values
+        ];
+    }
+
+    return options;
+}
+```
+
+### Debugging
+
+**Check if field exists:**
+```
+GET /bigin/v2/settings/fields?module=Contacts
+```
+
+**Find field API name:**
+```json
+{
+  "fields": [
+    {
+      "api_name": "Lead_Source",
+      "field_label": "Lead Source",
+      "pick_list_values": [
+        { "actual_value": "Web", "display_value": "Web" },
+        { "actual_value": "Phone", "display_value": "Phone" }
+      ]
+    }
+  ]
+}
+```
+
+**Test load options:**
+1. Use n8n's parameter testing feature
+2. Check browser console for errors
+3. Verify OAuth scope includes `ZohoBigin.settings.fields.READ`
+4. Confirm field API name matches exactly (case-sensitive)
+
+### Performance Considerations
+
+- **First Load**: ~200ms (API call + parsing)
+- **Cached Load**: <1ms
+- **Cache Expiry**: 1 hour (configurable)
+- **Multiple Fields**: Cached independently per module/field combination
+
+### Best Practices
+
+1. **Descriptive Method Names**: Use format `get{Module}{Field}Options` (e.g., `getContactLeadSourceOptions`)
+2. **Document Usage**: Add JSDoc comments with `loadOptionsMethod` reference
+3. **Graceful Fallbacks**: Return empty array or default options if API fails
+4. **Module API Names**: Use correct module names (Deals, not Pipelines for API)
+5. **Field API Names**: Use exact case-sensitive field names (e.g., `Lead_Source` not `lead_source`)
+
 ## Testing
 
 ### Jest Configuration

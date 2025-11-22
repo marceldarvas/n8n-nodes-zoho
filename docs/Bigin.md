@@ -105,6 +105,122 @@ Creates a new contact in Zoho Bigin.
 }
 ```
 
+#### GDPR Compliance
+
+Starting with version 1.0.3, the Zoho Bigin node supports GDPR data processing basis details for contacts. This allows you to specify the legal basis for processing personal data in compliance with GDPR Article 6.
+
+##### Data Processing Basis Field
+
+The `Data_Processing_Basis_Details` field is a complex JSON object that captures consent and data processing information. The node provides a user-friendly interface to build this object automatically.
+
+##### Available Parameters
+
+| Parameter | Type | Description |
+|-----------|------|-------------|
+| Data Processing Basis | options | Legal basis for processing (fetched dynamically from your Bigin account) |
+| Contact Through Email | boolean | Whether contact can be reached via email |
+| Contact Through Phone | boolean | Whether contact can be reached via phone |
+| Contact Through Survey | boolean | Whether contact can be reached via survey |
+| Lawful Reason | string | Additional lawful reason for data processing |
+| Consent Remarks | string | Additional remarks about consent |
+| Consent Date | dateTime | Date when consent was obtained (ISO 8601 format) |
+
+##### Data Processing Basis Values
+
+The dropdown values are automatically fetched from your Bigin account's field metadata and cached for 1 hour. Default English values include:
+
+- **Not Applicable** - No specific legal basis applies
+- **Legitimate Interests** - Processing based on legitimate interests
+- **Contract** - Processing necessary for contract performance
+- **Legal Obligation** - Processing required by law
+- **Vital Interests** - Processing necessary to protect vital interests
+- **Public Interests** - Processing in the public interest
+- **Pending** - Consent request pending
+- **Awaiting** - Awaiting consent response
+- **Obtained** - Consent has been obtained
+- **Not Responded** - No response to consent request
+
+**Note**: Values are localized based on your Bigin account language settings (e.g., Hungarian, German, French, etc.)
+
+##### Example Usage in n8n
+
+When creating or updating a contact, expand the "GDPR Compliance" section and fill in the fields:
+
+```
+GDPR Compliance
+├── Data Processing Basis: "Obtained"
+├── Contact Through Email: true
+├── Contact Through Phone: true
+├── Contact Through Survey: false
+├── Lawful Reason: "Customer relationship management"
+├── Consent Remarks: "Consent obtained via website form"
+└── Consent Date: "2025-01-15T10:30:00Z"
+```
+
+This will generate the following `Data_Processing_Basis_Details` object:
+
+```json
+{
+  "Data_Processing_Basis_Details": {
+    "Data_Processing_Basis": "Obtained",
+    "Contact_Through_Email": true,
+    "Contact_Through_Phone": true,
+    "Contact_Through_Survey": false,
+    "Lawful_Reason": "Customer relationship management",
+    "Consent_Remarks": "Consent obtained via website form",
+    "Consent_Date": "2025-01-15T10:30:00Z"
+  }
+}
+```
+
+##### Read-Only Fields
+
+When retrieving a contact, the `Data_Processing_Basis_Details` object also includes read-only fields managed by Bigin:
+
+- `Owner` - Record owner information
+- `Created_Time` - When the GDPR record was created
+- `Created_By` - User who created the GDPR record
+- `Modified_Time` - Last modification time
+- `Modified_By` - User who last modified the GDPR record
+- `Consent_Through` - Channel through which consent was obtained
+- `Mail_Sent_Time` - When consent email was sent
+- `id` - Unique identifier of the GDPR record
+
+##### Bulk Operations
+
+For bulk create and bulk update operations, include the `Data_Processing_Basis_Details` object directly in your JSON data:
+
+```json
+[
+  {
+    "Last_Name": "Doe",
+    "Email": "john.doe@example.com",
+    "Data_Processing_Basis_Details": {
+      "Data_Processing_Basis": "Obtained",
+      "Contact_Through_Email": true,
+      "Contact_Through_Phone": true
+    }
+  },
+  {
+    "Last_Name": "Smith",
+    "Email": "jane.smith@example.com",
+    "Data_Processing_Basis_Details": {
+      "Data_Processing_Basis": "Pending",
+      "Contact_Through_Email": false,
+      "Contact_Through_Phone": false
+    }
+  }
+]
+```
+
+##### Important Notes
+
+- GDPR compliance fields are **only available for Contacts module** (not for Accounts, Pipelines, etc.)
+- If no GDPR fields are specified, `Data_Processing_Basis_Details` will be `null`
+- The Data Processing Basis dropdown options are cached for 1 hour to minimize API calls
+- Options are fetched from Bigin's field metadata API and reflect your account's language settings
+- All GDPR parameters are optional - you can specify only the fields you need
+
 ---
 
 ### Get Contact

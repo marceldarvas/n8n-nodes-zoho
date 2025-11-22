@@ -16,9 +16,13 @@ export const pipelinesOperations: INodeProperties[] = [
 			{ name: 'Create', value: 'createPipeline', description: 'Create a pipeline record' },
 			{ name: 'Update', value: 'updatePipeline', description: 'Update a pipeline record' },
 			{ name: 'Delete', value: 'deletePipeline', description: 'Delete a pipeline record' },
+			{ name: 'Upsert', value: 'upsertPipeline', description: 'Create or update a pipeline (idempotent)' },
 			{ name: 'Search', value: 'searchPipelines', description: 'Search pipeline records' },
 			{ name: 'Execute COQL Query', value: 'executeCOQL', description: 'Execute a COQL query for advanced filtering' },
+			{ name: 'Get Deleted Records', value: 'getDeletedRecords', description: 'Get deleted pipelines with metadata' },
 			{ name: 'Get Fields', value: 'getFields', description: 'Get metadata for pipeline fields' },
+			{ name: 'Get Modules', value: 'getModules', description: 'Get all available modules' },
+			{ name: 'Get Organization', value: 'getOrganization', description: 'Get organization information' },
 			{ name: 'Bulk Create', value: 'bulkCreatePipelines', description: 'Create multiple pipeline records' },
 			{ name: 'Bulk Update', value: 'bulkUpdatePipelines', description: 'Update multiple pipeline records' },
 			{ name: 'Get Related Records', value: 'getRelatedRecords', description: 'Get records related to a pipeline' },
@@ -64,7 +68,7 @@ export const pipelinesFields: INodeProperties[] = [
 		displayOptions: {
 			show: {
 				resource: ['pipeline'],
-				operation: ['createPipeline'],
+				operation: ['createPipeline', 'upsertPipeline'],
 			},
 		},
 		default: '',
@@ -81,7 +85,7 @@ export const pipelinesFields: INodeProperties[] = [
 		displayOptions: {
 			show: {
 				resource: ['pipeline'],
-				operation: ['createPipeline', 'updatePipeline'],
+				operation: ['createPipeline', 'updatePipeline', 'upsertPipeline'],
 			},
 		},
 		options: [
@@ -262,6 +266,50 @@ export const pipelinesFields: INodeProperties[] = [
 			},
 		},
 		description: 'Search term to find in pipeline records',
+	},
+
+	// Upsert operation - Duplicate Check Fields
+	{
+		displayName: 'Duplicate Check Fields',
+		name: 'duplicateCheckFields',
+		type: 'multiOptions',
+		required: true,
+		displayOptions: {
+			show: {
+				resource: ['pipeline'],
+				operation: ['upsertPipeline'],
+			},
+		},
+		options: [
+			{ name: 'Deal Name', value: 'Deal_Name' },
+			{ name: 'Contact Name', value: 'Contact_Name' },
+			{ name: 'Account Name', value: 'Account_Name' },
+		],
+		default: ['Deal_Name'],
+		description: 'Fields to use for duplicate detection. If a pipeline with matching values exists, it will be updated; otherwise, a new pipeline will be created.',
+	},
+
+	// Get Deleted Records - Pagination
+	...paginationFields('pipeline', 'getDeletedRecords'),
+
+	// Get Deleted Records - Deletion Type
+	{
+		displayName: 'Deletion Type',
+		name: 'deletionType',
+		type: 'options',
+		displayOptions: {
+			show: {
+				resource: ['pipeline'],
+				operation: ['getDeletedRecords'],
+			},
+		},
+		options: [
+			{ name: 'All', value: 'all', description: 'All deleted records' },
+			{ name: 'Recycle Bin', value: 'recycle', description: 'Records in recycle bin (recoverable)' },
+			{ name: 'Permanent', value: 'permanent', description: 'Permanently deleted records' },
+		],
+		default: 'all',
+		description: 'Type of deleted records to retrieve',
 	},
 
 	// Bulk operations - Pipelines Data (JSON)

@@ -16,6 +16,11 @@ export const eventsOperations: INodeProperties[] = [
 			{ name: 'Create', value: 'createEvent', description: 'Create an event' },
 			{ name: 'Update', value: 'updateEvent', description: 'Update an event' },
 			{ name: 'Delete', value: 'deleteEvent', description: 'Delete an event' },
+			{ name: 'Upsert', value: 'upsertEvent', description: 'Create or update an event (idempotent)' },
+			{ name: 'Get Deleted Records', value: 'getDeletedRecords', description: 'Get deleted events with metadata' },
+			{ name: 'Get Fields', value: 'getFields', description: 'Get metadata for event fields' },
+			{ name: 'Get Modules', value: 'getModules', description: 'Get all available modules' },
+			{ name: 'Get Organization', value: 'getOrganization', description: 'Get organization information' },
 		],
 		default: 'listEvents',
 	},
@@ -50,7 +55,7 @@ export const eventsFields: INodeProperties[] = [
 		displayOptions: {
 			show: {
 				resource: ['event'],
-				operation: ['createEvent'],
+				operation: ['createEvent', 'upsertEvent'],
 			},
 		},
 		default: '',
@@ -64,7 +69,7 @@ export const eventsFields: INodeProperties[] = [
 		displayOptions: {
 			show: {
 				resource: ['event'],
-				operation: ['createEvent'],
+				operation: ['createEvent', 'upsertEvent'],
 			},
 		},
 		default: '',
@@ -78,7 +83,7 @@ export const eventsFields: INodeProperties[] = [
 		displayOptions: {
 			show: {
 				resource: ['event'],
-				operation: ['createEvent'],
+				operation: ['createEvent', 'upsertEvent'],
 			},
 		},
 		default: '',
@@ -95,7 +100,7 @@ export const eventsFields: INodeProperties[] = [
 		displayOptions: {
 			show: {
 				resource: ['event'],
-				operation: ['createEvent', 'updateEvent'],
+				operation: ['createEvent', 'updateEvent', 'upsertEvent'],
 			},
 		},
 		options: [
@@ -223,5 +228,50 @@ export const eventsFields: INodeProperties[] = [
 				],
 			},
 		],
+	},
+
+	// Upsert operation - Duplicate Check Fields
+	{
+		displayName: 'Duplicate Check Fields',
+		name: 'duplicateCheckFields',
+		type: 'multiOptions',
+		required: true,
+		displayOptions: {
+			show: {
+				resource: ['event'],
+				operation: ['upsertEvent'],
+			},
+		},
+		options: [
+			{ name: 'Event Title', value: 'Event_Title' },
+			{ name: 'Start DateTime', value: 'Start_DateTime' },
+			{ name: 'End DateTime', value: 'End_DateTime' },
+			{ name: 'Related To', value: 'Related_To' },
+		],
+		default: ['Event_Title', 'Start_DateTime'],
+		description: 'Fields to use for duplicate detection. If an event with matching values exists, it will be updated; otherwise, a new event will be created.',
+	},
+
+	// Get Deleted Records - Pagination
+	...paginationFields('event', 'getDeletedRecords'),
+
+	// Get Deleted Records - Deletion Type
+	{
+		displayName: 'Deletion Type',
+		name: 'deletionType',
+		type: 'options',
+		displayOptions: {
+			show: {
+				resource: ['event'],
+				operation: ['getDeletedRecords'],
+			},
+		},
+		options: [
+			{ name: 'All', value: 'all', description: 'All deleted records' },
+			{ name: 'Recycle Bin', value: 'recycle', description: 'Records in recycle bin (recoverable)' },
+			{ name: 'Permanent', value: 'permanent', description: 'Permanently deleted records' },
+		],
+		default: 'all',
+		description: 'Type of deleted records to retrieve',
 	},
 ];
