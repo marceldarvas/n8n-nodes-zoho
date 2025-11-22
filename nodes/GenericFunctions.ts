@@ -35,13 +35,16 @@ function hasLogger(context: unknown): context is WithLogger {
     const contextWithLogger = context as { logger?: unknown };
     const logger = contextWithLogger.logger;
 
+    if (typeof logger !== 'object' || logger === null) {
+        return false;
+    }
+
+    const loggerObj = logger as Record<string, unknown>;
     return (
-        typeof logger === 'object' &&
-        logger !== null &&
-        'log' in logger &&
-        'warn' in logger &&
-        typeof (logger as any).log === 'function' &&
-        typeof (logger as any).warn === 'function'
+        'log' in loggerObj &&
+        'warn' in loggerObj &&
+        typeof loggerObj.log === 'function' &&
+        typeof loggerObj.warn === 'function'
     );
 }
 
@@ -368,8 +371,14 @@ export interface OperationMetrics {
 
 /**
  * Log operation metrics for monitoring and debugging
- * @param context - n8n execution context (optional, for logger access)
+ * 
+ * @param context - n8n execution context (optional). When undefined, falls back to console.log for logging.
  * @param metrics - Operation metrics to log
+ * 
+ * **Logging Behavior:**
+ * - If context has a logger, uses n8n's built-in logging system
+ * - Otherwise, falls back to console.log for compatibility
+ * - Only logs when duration > 1000ms, operation failed, or retries occurred
  */
 function logMetrics(
     context: IExecuteFunctions | IHookFunctions | ILoadOptionsFunctions | undefined,
