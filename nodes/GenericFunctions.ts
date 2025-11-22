@@ -15,16 +15,33 @@ import type {
 } from './types';
 
 /**
+ * Interface for objects with n8n logger support
+ */
+interface WithLogger {
+    logger: {
+        log: (level: string, message: string, meta?: unknown) => void;
+        warn: (message: string, meta?: unknown) => void;
+    };
+}
+
+/**
  * Type guard to check if context has a logger property
  */
-function hasLogger(context: unknown): context is { logger: { log: (level: string, message: string, meta?: unknown) => void; warn: (message: string, meta?: unknown) => void } } {
+function hasLogger(context: unknown): context is WithLogger {
+    if (typeof context !== 'object' || context === null || !('logger' in context)) {
+        return false;
+    }
+
+    const contextWithLogger = context as { logger?: unknown };
+    const logger = contextWithLogger.logger;
+
     return (
-        typeof context === 'object' &&
-        context !== null &&
-        'logger' in context &&
-        typeof (context as any).logger === 'object' &&
-        typeof (context as any).logger.log === 'function' &&
-        typeof (context as any).logger.warn === 'function'
+        typeof logger === 'object' &&
+        logger !== null &&
+        'log' in logger &&
+        'warn' in logger &&
+        typeof (logger as any).log === 'function' &&
+        typeof (logger as any).warn === 'function'
     );
 }
 
