@@ -1,7 +1,9 @@
 import type {
 	IDataObject,
 	IExecuteFunctions,
+	ILoadOptionsFunctions,
 	INodeExecutionData,
+	INodePropertyOptions,
 	INodeType,
 	INodeTypeDescription,
 } from 'n8n-workflow';
@@ -37,6 +39,23 @@ export class ZohoBigin implements INodeType {
 	 * Caches field metadata and other rarely-changing data
 	 */
 	private static metadataCache: Map<string, { data: IDataObject; expiry: number }> = new Map();
+
+	/**
+	 * Default GDPR Data Processing Basis options
+	 * Used as fallback when field metadata cannot be fetched from Bigin API
+	 */
+	private static readonly DEFAULT_GDPR_OPTIONS: INodePropertyOptions[] = [
+		{ name: 'Not Applicable', value: 'Not Applicable' },
+		{ name: 'Legitimate Interests', value: 'Legitimate Interests' },
+		{ name: 'Contract', value: 'Contract' },
+		{ name: 'Legal Obligation', value: 'Legal Obligation' },
+		{ name: 'Vital Interests', value: 'Vital Interests' },
+		{ name: 'Public Interests', value: 'Public Interests' },
+		{ name: 'Pending', value: 'Pending' },
+		{ name: 'Awaiting', value: 'Awaiting' },
+		{ name: 'Obtained', value: 'Obtained' },
+		{ name: 'Not Responded', value: 'Not Responded' },
+	];
 
 	description: INodeTypeDescription = {
 		displayName: 'Zoho Bigin',
@@ -119,6 +138,244 @@ export class ZohoBigin implements INodeType {
 			...eventsFields,
 			...notesFields,
 		],
+	};
+
+	/**
+	 * Static helper method to fetch picklist options for any field in any module
+	 *
+	 * This method provides dynamic dropdown population for:
+	 * - Standard picklist fields (e.g., Lead_Source, Industry, Priority)
+	 * - Custom fields with picklist type
+	 * - Multi-select picklists
+	 * - Boolean fields (Yes/No)
+	 *
+	 * @param context - Load options function context
+	 * @param moduleName - API name of the module (Contacts, Pipelines, Accounts, etc.)
+	 * @param fieldApiName - API name of the field (Lead_Source, Industry, cf_custom_field, etc.)
+	 * @returns Array of options with name (display) and value (actual value)
+	 *
+	 * Features:
+	 * - 1-hour cache to minimize API calls
+	 * - Localized display values (automatic language support)
+	 * - Falls back to actual values if display values missing
+	 * - Returns empty array if field not found (graceful degradation)
+	 */
+	private static async fetchFieldPicklistOptions(
+		context: ILoadOptionsFunctions,
+		moduleName: string,
+		fieldApiName: string,
+	): Promise<INodePropertyOptions[]> {
+		try {
+			const cacheKey = `fields:${moduleName}:${fieldApiName}`;
+			const cached = ZohoBigin.metadataCache.get(cacheKey);
+			const now = Date.now();
+
+			// Return cached options if available and not expired
+			if (cached && cached.expiry > now) {
+				return cached.data.options as INodePropertyOptions[];
+			}
+
+			// Fetch field metadata from Bigin Settings API
+			const response = await zohoBiginApiRequest.call(
+				context,
+				'GET',
+				`/settings/fields?module=${moduleName}`,
+				{},
+				{},
+			);
+
+			// Find the requested field
+			const fields = response.fields || [];
+			const targetField = fields.find(
+				(field: IDataObject) => field.api_name === fieldApiName,
+			);
+
+			if (!targetField) {
+				// Field not found - return empty array
+				return [];
+			}
+
+			// Extract picklist values
+			const pickListValues = (targetField.pick_list_values || []) as IDataObject[];
+
+			if (pickListValues.length === 0) {
+				// No picklist values available
+				return [];
+			}
+
+			// Map to n8n options format (prioritize display_value for localization)
+			const options: INodePropertyOptions[] = pickListValues.map((item: IDataObject) => ({
+				name: (item.display_value as string) || (item.actual_value as string),
+				value: item.actual_value as string,
+			}));
+
+			// Cache the options for 1 hour
+			ZohoBigin.metadataCache.set(cacheKey, {
+				data: { options },
+				expiry: now + (60 * 60 * 1000),
+			});
+
+			return options;
+		} catch (error) {
+			// Silently handle error - return empty array
+			return [];
+		}
+	}
+
+	/**
+	 * Build GDPR Data Processing Basis Details object from gdprCompliance parameters
+	 *
+	 * This helper extracts GDPR-related fields from the gdprCompliance parameter and
+	 * constructs the Data_Processing_Basis_Details object required by Bigin API.
+	 *
+	 * @param gdprCompliance - The gdprCompliance parameter object from node parameters
+	 * @returns Data_Processing_Basis_Details object or undefined if no GDPR data provided
+	 *
+	 * Fields supported:
+	 * - Data_Processing_Basis: Legal basis (e.g., "Contract", "Legitimate Interests")
+	 * - Contact_Through_Email: Boolean permission for email contact
+	 * - Contact_Through_Phone: Boolean permission for phone contact
+	 * - Contact_Through_Survey: Boolean permission for survey participation
+	 * - Lawful_Reason: Text field for additional justification
+	 * - Consent_Remarks: Text field for consent notes
+	 * - Consent_Date: ISO 8601 datetime for when consent was obtained
+	 */
+	private static buildGdprDataProcessingDetails(gdprCompliance: IDataObject): IDataObject | undefined {
+		if (!gdprCompliance.dataProcessingDetails) {
+			return undefined;
+		}
+
+		const gdprData = gdprCompliance.dataProcessingDetails as IDataObject;
+		const dataProcessingBasisDetails: IDataObject = {};
+
+		// Add Data Processing Basis
+		if (gdprData.Data_Processing_Basis) {
+			dataProcessingBasisDetails.Data_Processing_Basis = gdprData.Data_Processing_Basis;
+		}
+
+		// Add contact permissions
+		if (gdprData.Contact_Through_Email !== undefined) {
+			dataProcessingBasisDetails.Contact_Through_Email = gdprData.Contact_Through_Email;
+		}
+		if (gdprData.Contact_Through_Phone !== undefined) {
+			dataProcessingBasisDetails.Contact_Through_Phone = gdprData.Contact_Through_Phone;
+		}
+		if (gdprData.Contact_Through_Survey !== undefined) {
+			dataProcessingBasisDetails.Contact_Through_Survey = gdprData.Contact_Through_Survey;
+		}
+
+		// Add optional text fields
+		if (gdprData.Lawful_Reason) {
+			dataProcessingBasisDetails.Lawful_Reason = gdprData.Lawful_Reason;
+		}
+		if (gdprData.Consent_Remarks) {
+			dataProcessingBasisDetails.Consent_Remarks = gdprData.Consent_Remarks;
+		}
+		if (gdprData.Consent_Date) {
+			dataProcessingBasisDetails.Consent_Date = gdprData.Consent_Date;
+		}
+
+		return Object.keys(dataProcessingBasisDetails).length > 0
+			? dataProcessingBasisDetails
+			: undefined;
+	}
+
+	methods = {
+		loadOptions: {
+			/**
+			 * Load Data Processing Basis options from Bigin field metadata
+			 * Fetches picklist values for the GDPR Data_Processing_Basis field
+			 * Results are cached for 1 hour to minimize API calls
+			 *
+			 * Usage: Set loadOptionsMethod to 'getDataProcessingBasisOptions'
+			 * Module: Contacts
+			 * Field: Data_Processing_Basis
+			 */
+			async getDataProcessingBasisOptions(
+				this: ILoadOptionsFunctions,
+			): Promise<INodePropertyOptions[]> {
+				try {
+					// Use the generic helper method with fallback
+					const options = await ZohoBigin.fetchFieldPicklistOptions(this, 'Contacts', 'Data_Processing_Basis');
+
+					// If no options returned (field not found), provide default GDPR values
+					if (options.length === 0) {
+						return ZohoBigin.DEFAULT_GDPR_OPTIONS;
+					}
+
+					return options;
+				} catch (error) {
+					// Return default English options if API call fails
+					return ZohoBigin.DEFAULT_GDPR_OPTIONS;
+				}
+			},
+
+			// ===================================================================
+			// EXAMPLE METHODS: Add custom load options methods for your fields
+			// ===================================================================
+			// To add a new picklist field dropdown:
+			// 1. Copy one of the example methods below
+			// 2. Uncomment and change the method name (e.g., getContactLeadSourceOptions)
+			// 3. Update the moduleName and fieldApiName in ZohoBigin.fetchFieldPicklistOptions()
+			// 4. Add the method name to your field's typeOptions.loadOptionsMethod
+			//
+			// Example: For a custom field "cf_pizza_topping" in Contacts:
+			// async getContactPizzaToppingOptions(this: ILoadOptionsFunctions): Promise<INodePropertyOptions[]> {
+			//     return await ZohoBigin.fetchFieldPicklistOptions(this, 'Contacts', 'cf_pizza_topping');
+			// }
+			// ===================================================================
+
+			/**
+			 * Example: Load Lead Source options for Contacts
+			 * Usage: loadOptionsMethod: 'getContactLeadSourceOptions'
+			 */
+			// async getContactLeadSourceOptions(
+			// 	this: ILoadOptionsFunctions,
+			// ): Promise<INodePropertyOptions[]> {
+			// 	return await ZohoBigin.fetchFieldPicklistOptions(this, 'Contacts', 'Lead_Source');
+			// },
+
+			/**
+			 * Example: Load Industry options for Accounts
+			 * Usage: loadOptionsMethod: 'getAccountIndustryOptions'
+			 */
+			// async getAccountIndustryOptions(
+			// 	this: ILoadOptionsFunctions,
+			// ): Promise<INodePropertyOptions[]> {
+			// 	return await ZohoBigin.fetchFieldPicklistOptions(this, 'Accounts', 'Industry');
+			// },
+
+			/**
+			 * Example: Load Pipeline Stage options for Pipelines (Deals)
+			 * Usage: loadOptionsMethod: 'getPipelineStageOptions'
+			 */
+			// async getPipelineStageOptions(
+			// 	this: ILoadOptionsFunctions,
+			// ): Promise<INodePropertyOptions[]> {
+			// 	return await ZohoBigin.fetchFieldPicklistOptions(this, 'Deals', 'Stage');
+			// },
+
+			/**
+			 * Example: Load Priority options for Tasks
+			 * Usage: loadOptionsMethod: 'getTaskPriorityOptions'
+			 */
+			// async getTaskPriorityOptions(
+			// 	this: ILoadOptionsFunctions,
+			// ): Promise<INodePropertyOptions[]> {
+			// 	return await ZohoBigin.fetchFieldPicklistOptions(this, 'Tasks', 'Priority');
+			// },
+
+			/**
+			 * Example: Load custom field options
+			 * Replace 'cf_1234567890' with your actual custom field ID
+			 * Usage: loadOptionsMethod: 'getCustomFieldOptions'
+			 */
+			// async getCustomFieldOptions(
+			// 	this: ILoadOptionsFunctions,
+			// ): Promise<INodePropertyOptions[]> {
+			// 	return await ZohoBigin.fetchFieldPicklistOptions(this, 'Contacts', 'cf_1234567890');
+			// },
+		},
 	};
 
 	/**
@@ -640,6 +897,128 @@ export class ZohoBigin implements INodeType {
 	}
 
 	/**
+	 * Get deleted records for a specific module
+	 *
+	 * This is a shared operation that retrieves deleted records from any Bigin module.
+	 * Supports both paginated and single-page retrieval with deletion type filtering.
+	 *
+	 * **Deletion Types:**
+	 * - `all`: All deleted records (default)
+	 * - `recycle`: Records in recycle bin
+	 * - `permanent`: Permanently deleted records
+	 *
+	 * @param context - The IExecuteFunctions instance
+	 * @param itemIndex - The index of the current input item
+	 * @param moduleName - The Bigin module name (e.g., 'Contacts', 'Deals', 'Accounts')
+	 * @returns Array of deleted record objects
+	 */
+	private static async getDeletedRecords(
+		context: IExecuteFunctions,
+		itemIndex: number,
+		moduleName: string,
+	): Promise<IDataObject[]> {
+		const returnAll = context.getNodeParameter('returnAll', itemIndex, false) as boolean;
+		const deletionType = context.getNodeParameter('deletionType', itemIndex, 'all') as string;
+
+		const qs: IDataObject = {
+			type: deletionType,
+		};
+
+		if (returnAll) {
+			// Fetch all deleted records with pagination
+			let allRecords: IDataObject[] = [];
+			let page = 1;
+			let moreRecords = true;
+
+			while (moreRecords) {
+				qs.page = page;
+				qs.per_page = 200; // Max allowed per page
+
+				const response = await zohoBiginApiRequest.call(
+					context,
+					'GET',
+					`/${moduleName}/deleted`,
+					{},
+					qs,
+				);
+
+				const records = response.data || [];
+				allRecords = allRecords.concat(records);
+
+				moreRecords = response.info?.more_records || false;
+				page++;
+			}
+
+			return allRecords;
+		} else {
+			// Fetch single page
+			const limit = context.getNodeParameter('limit', itemIndex, 50) as number;
+			qs.page = 1;
+			qs.per_page = limit;
+
+			const response = await zohoBiginApiRequest.call(
+				context,
+				'GET',
+				`/${moduleName}/deleted`,
+				{},
+				qs,
+			);
+
+			return response.data || [];
+		}
+	}
+
+	/**
+	 * Get all available modules (system-wide operation)
+	 *
+	 * Retrieves the list of all available modules in the Bigin organization.
+	 * Results are cached for 1 hour to minimize API calls.
+	 *
+	 * @param context - The IExecuteFunctions instance
+	 * @returns Array of module objects with metadata
+	 */
+	private static async getModules(context: IExecuteFunctions): Promise<IDataObject[]> {
+		const cacheKey = 'modules:all';
+		const result = await ZohoBigin.getCachedMetadata(cacheKey, async () => {
+			const response = await zohoBiginApiRequest.call(
+				context,
+				'GET',
+				'/settings/modules',
+				{},
+				{},
+			);
+			return { modules: response.modules || [] };
+		});
+
+		return result.modules as IDataObject[];
+	}
+
+	/**
+	 * Get organization information (system-wide operation)
+	 *
+	 * Retrieves organization-level information including settings, preferences, and metadata.
+	 * Results are cached for 1 hour to minimize API calls.
+	 *
+	 * @param context - The IExecuteFunctions instance
+	 * @returns Array of organization information objects
+	 */
+	private static async getOrganization(context: IExecuteFunctions): Promise<IDataObject[]> {
+		const cacheKey = 'organization:info';
+		const result = await ZohoBigin.getCachedMetadata(cacheKey, async () => {
+			const response = await zohoBiginApiRequest.call(
+				context,
+				'GET',
+				'/org',
+				{},
+				{},
+			);
+			return { org: response.org || [] };
+		});
+
+		return result.org as IDataObject[];
+	}
+
+	/**
 	 * Handle Pipeline (Deals) operations
 	 *
 	 * Provides comprehensive pipeline/deal management including list, get, create, update, delete,
@@ -813,6 +1192,31 @@ export class ZohoBigin implements INodeType {
 
 			return response.data?.[0]?.details || {};
 
+		} else if (operation === 'upsertPipeline') {
+			const dealName = context.getNodeParameter('dealName', itemIndex) as string;
+			const duplicateCheckFields = context.getNodeParameter('duplicateCheckFields', itemIndex) as string[];
+			const additionalFields = context.getNodeParameter('additionalFields', itemIndex, {}) as IDataObject;
+
+			const pipelineData: IDataObject = {
+				Deal_Name: dealName,
+				...additionalFields,
+			};
+
+			const body: IDataObject = {
+				data: [pipelineData],
+				duplicate_check_fields: duplicateCheckFields,
+			};
+
+			const response = await zohoBiginApiRequest.call(
+				context,
+				'POST',
+				'/Pipelines/upsert',
+				body,
+				{},
+			);
+
+			return response.data?.[0]?.details || {};
+
 		} else if (operation === 'searchPipelines') {
 			const searchTerm = context.getNodeParameter('searchTerm', itemIndex, '') as string;
 			const filters = context.getNodeParameter('filters', itemIndex, { filter: [] }) as {
@@ -848,6 +1252,9 @@ export class ZohoBigin implements INodeType {
 			);
 
 			return response.data || [];
+
+		} else if (operation === 'getDeletedRecords') {
+			return await ZohoBigin.getDeletedRecords(context, itemIndex, 'Deals');
 
 		} else if (operation === 'bulkCreatePipelines') {
 			const pipelinesDataRaw = context.getNodeParameter('pipelinesData', itemIndex) as string;
@@ -1006,6 +1413,13 @@ export class ZohoBigin implements INodeType {
 			});
 
 			return result.fields as IDataObject[];
+
+		} else if (operation === 'getModules') {
+			return await ZohoBigin.getModules(context);
+
+		} else if (operation === 'getOrganization') {
+			return await ZohoBigin.getOrganization(context);
+
 		} else if (operation === 'getRelatedRecords') {
 			const recordId = context.getNodeParameter('recordId', itemIndex) as string;
 			const relatedModule = context.getNodeParameter('relatedModule', itemIndex) as string;
@@ -1363,14 +1777,22 @@ export class ZohoBigin implements INodeType {
 		} else if (operation === 'createContact') {
 			const lastName = context.getNodeParameter('lastName', itemIndex) as string;
 			const additionalFields = context.getNodeParameter('additionalFields', itemIndex, {}) as IDataObject;
+			const gdprCompliance = context.getNodeParameter('gdprCompliance', itemIndex, {}) as IDataObject;
+
+			// Build contact data
+			const contactData: IDataObject = {
+				Last_Name: lastName,
+				...additionalFields,
+			};
+
+			// Build GDPR Data Processing Basis Details if provided
+			const gdprDetails = ZohoBigin.buildGdprDataProcessingDetails(gdprCompliance);
+			if (gdprDetails) {
+				contactData.Data_Processing_Basis_Details = gdprDetails;
+			}
 
 			const body = {
-				data: [
-					{
-						Last_Name: lastName,
-						...additionalFields,
-					},
-				],
+				data: [contactData],
 			};
 
 			const response = await zohoBiginApiRequest.call(
@@ -1385,21 +1807,63 @@ export class ZohoBigin implements INodeType {
 
 		} else if (operation === 'updateContact') {
 			const contactId = context.getNodeParameter('contactId', itemIndex) as string;
-			const updateFields = context.getNodeParameter('updateFields', itemIndex, {}) as IDataObject;
+			const additionalFields = context.getNodeParameter('additionalFields', itemIndex, {}) as IDataObject;
+			const gdprCompliance = context.getNodeParameter('gdprCompliance', itemIndex, {}) as IDataObject;
+
+			// Build contact data
+			const contactData: IDataObject = {
+				id: contactId,
+				...additionalFields,
+			};
+
+			// Build GDPR Data Processing Basis Details if provided
+			const gdprDetails = ZohoBigin.buildGdprDataProcessingDetails(gdprCompliance);
+			if (gdprDetails) {
+				contactData.Data_Processing_Basis_Details = gdprDetails;
+			}
 
 			const body = {
-				data: [
-					{
-						id: contactId,
-						...updateFields,
-					},
-				],
+				data: [contactData],
 			};
 
 			const response = await zohoBiginApiRequest.call(
 				context,
 				'PUT',
 				'/Contacts',
+				body,
+				{},
+			);
+
+			return response.data?.[0]?.details || {};
+
+		} else if (operation === 'upsertContact') {
+			const lastName = context.getNodeParameter('lastName', itemIndex) as string;
+			const duplicateCheckFields = context.getNodeParameter('duplicateCheckFields', itemIndex) as string[];
+			const additionalFields = context.getNodeParameter('additionalFields', itemIndex, {}) as IDataObject;
+			const gdprCompliance = context.getNodeParameter('gdprCompliance', itemIndex, {}) as IDataObject;
+
+			// Build contact data
+			const contactData: IDataObject = {
+				Last_Name: lastName,
+				...additionalFields,
+			};
+
+			// Build GDPR Data Processing Basis Details if provided
+			const gdprDetails = ZohoBigin.buildGdprDataProcessingDetails(gdprCompliance);
+			if (gdprDetails) {
+				contactData.Data_Processing_Basis_Details = gdprDetails;
+			}
+
+			// Build request body with duplicate check fields
+			const body: IDataObject = {
+				data: [contactData],
+				duplicate_check_fields: duplicateCheckFields,
+			};
+
+			const response = await zohoBiginApiRequest.call(
+				context,
+				'POST',
+				'/Contacts/upsert',
 				body,
 				{},
 			);
@@ -1454,6 +1918,9 @@ export class ZohoBigin implements INodeType {
 			);
 
 			return response.data || [];
+
+		} else if (operation === 'getDeletedRecords') {
+			return await ZohoBigin.getDeletedRecords(context, itemIndex, 'Contacts');
 
 		} else if (operation === 'bulkCreateContacts') {
 			const contactsDataRaw = context.getNodeParameter('contactsData', itemIndex) as string;
@@ -1598,6 +2065,12 @@ export class ZohoBigin implements INodeType {
 			});
 
 			return result.fields as IDataObject[];
+
+		} else if (operation === 'getModules') {
+			return await ZohoBigin.getModules(context);
+
+		} else if (operation === 'getOrganization') {
+			return await ZohoBigin.getOrganization(context);
 
 		} else if (operation === 'getRelatedRecords') {
 			const recordId = context.getNodeParameter('recordId', itemIndex) as string;
@@ -2069,6 +2542,31 @@ export class ZohoBigin implements INodeType {
 
 			return response.data?.[0]?.details || {};
 
+		} else if (operation === 'upsertAccount') {
+			const accountName = context.getNodeParameter('accountName', itemIndex) as string;
+			const duplicateCheckFields = context.getNodeParameter('duplicateCheckFields', itemIndex) as string[];
+			const additionalFields = context.getNodeParameter('additionalFields', itemIndex, {}) as IDataObject;
+
+			const accountData: IDataObject = {
+				Account_Name: accountName,
+				...additionalFields,
+			};
+
+			const body: IDataObject = {
+				data: [accountData],
+				duplicate_check_fields: duplicateCheckFields,
+			};
+
+			const response = await zohoBiginApiRequest.call(
+				context,
+				'POST',
+				'/Accounts/upsert',
+				body,
+				{},
+			);
+
+			return response.data?.[0]?.details || {};
+
 		} else if (operation === 'searchAccounts') {
 			const searchTerm = context.getNodeParameter('searchTerm', itemIndex, '') as string;
 			const filters = context.getNodeParameter('filters', itemIndex, { filter: [] }) as {
@@ -2104,6 +2602,9 @@ export class ZohoBigin implements INodeType {
 			);
 
 			return response.data || [];
+
+		} else if (operation === 'getDeletedRecords') {
+			return await ZohoBigin.getDeletedRecords(context, itemIndex, 'Accounts');
 
 		} else if (operation === 'bulkCreateAccounts') {
 			const accountsDataRaw = context.getNodeParameter('accountsData', itemIndex) as string;
@@ -2248,6 +2749,13 @@ export class ZohoBigin implements INodeType {
 			});
 
 			return result.fields as IDataObject[];
+
+		} else if (operation === 'getModules') {
+			return await ZohoBigin.getModules(context);
+
+		} else if (operation === 'getOrganization') {
+			return await ZohoBigin.getOrganization(context);
+
 		} else if (operation === 'getRelatedRecords') {
 			const recordId = context.getNodeParameter('recordId', itemIndex) as string;
 			const relatedModule = context.getNodeParameter('relatedModule', itemIndex) as string;
@@ -2718,6 +3226,31 @@ export class ZohoBigin implements INodeType {
 
 			return response.data?.[0]?.details || {};
 
+		} else if (operation === 'upsertProduct') {
+			const productName = context.getNodeParameter('productName', itemIndex) as string;
+			const duplicateCheckFields = context.getNodeParameter('duplicateCheckFields', itemIndex) as string[];
+			const additionalFields = context.getNodeParameter('additionalFields', itemIndex, {}) as IDataObject;
+
+			const productData: IDataObject = {
+				Product_Name: productName,
+				...additionalFields,
+			};
+
+			const body: IDataObject = {
+				data: [productData],
+				duplicate_check_fields: duplicateCheckFields,
+			};
+
+			const response = await zohoBiginApiRequest.call(
+				context,
+				'POST',
+				'/Products/upsert',
+				body,
+				{},
+			);
+
+			return response.data?.[0]?.details || {};
+
 		} else if (operation === 'searchProducts') {
 			const searchTerm = context.getNodeParameter('searchTerm', itemIndex) as string;
 			const searchField = context.getNodeParameter('searchField', itemIndex, 'Product_Name') as string;
@@ -2735,6 +3268,9 @@ export class ZohoBigin implements INodeType {
 			);
 
 			return response.data || [];
+
+		} else if (operation === 'getDeletedRecords') {
+			return await ZohoBigin.getDeletedRecords(context, itemIndex, 'Products');
 
 		} else if (operation === 'bulkCreateProducts') {
 			const productsDataRaw = context.getNodeParameter('productsData', itemIndex) as string;
@@ -2879,6 +3415,13 @@ export class ZohoBigin implements INodeType {
 			});
 
 			return result.fields as IDataObject[];
+
+		} else if (operation === 'getModules') {
+			return await ZohoBigin.getModules(context);
+
+		} else if (operation === 'getOrganization') {
+			return await ZohoBigin.getOrganization(context);
+
 		} else if (operation === 'uploadPhoto') {
 			const recordId = context.getNodeParameter('recordId', itemIndex) as string;
 			const binaryPropertyName = context.getNodeParameter('binaryPropertyName', itemIndex, 'data') as string;
@@ -3116,6 +3659,31 @@ export class ZohoBigin implements INodeType {
 
 			return response.data?.[0]?.details || {};
 
+		} else if (operation === 'upsertTask') {
+			const subject = context.getNodeParameter('subject', itemIndex) as string;
+			const duplicateCheckFields = context.getNodeParameter('duplicateCheckFields', itemIndex) as string[];
+			const additionalFields = context.getNodeParameter('additionalFields', itemIndex, {}) as IDataObject;
+
+			const taskData: IDataObject = {
+				Subject: subject,
+				...additionalFields,
+			};
+
+			const body: IDataObject = {
+				data: [taskData],
+				duplicate_check_fields: duplicateCheckFields,
+			};
+
+			const response = await zohoBiginApiRequest.call(
+				context,
+				'POST',
+				'/Tasks/upsert',
+				body,
+				{},
+			);
+
+			return response.data?.[0]?.details || {};
+
 		} else if (operation === 'searchTasks') {
 			const searchTerm = context.getNodeParameter('searchTerm', itemIndex) as string;
 			const searchField = context.getNodeParameter('searchField', itemIndex, 'Subject') as string;
@@ -3133,6 +3701,31 @@ export class ZohoBigin implements INodeType {
 			);
 
 			return response.data || [];
+
+		} else if (operation === 'getDeletedRecords') {
+			return await ZohoBigin.getDeletedRecords(context, itemIndex, 'Tasks');
+
+		} else if (operation === 'getFields') {
+			// Use cached metadata to reduce API calls
+			const cacheKey = 'fields:Tasks';
+			const result = await ZohoBigin.getCachedMetadata(cacheKey, async () => {
+				const response = await zohoBiginApiRequest.call(
+					context,
+					'GET',
+					'/settings/fields?module=Tasks',
+					{},
+					{},
+				);
+				return { fields: response.fields || [] };
+			});
+
+			return result.fields as IDataObject[];
+
+		} else if (operation === 'getModules') {
+			return await ZohoBigin.getModules(context);
+
+		} else if (operation === 'getOrganization') {
+			return await ZohoBigin.getOrganization(context);
 		}
 
 		throw new NodeOperationError(
@@ -3289,6 +3882,35 @@ export class ZohoBigin implements INodeType {
 
 			return response.data?.[0]?.details || {};
 
+		} else if (operation === 'upsertEvent') {
+			const eventTitle = context.getNodeParameter('eventTitle', itemIndex) as string;
+			const startDateTime = context.getNodeParameter('startDateTime', itemIndex) as string;
+			const endDateTime = context.getNodeParameter('endDateTime', itemIndex) as string;
+			const duplicateCheckFields = context.getNodeParameter('duplicateCheckFields', itemIndex) as string[];
+			const additionalFields = context.getNodeParameter('additionalFields', itemIndex, {}) as IDataObject;
+
+			const eventData: IDataObject = {
+				Event_Title: eventTitle,
+				Start_DateTime: startDateTime,
+				End_DateTime: endDateTime,
+				...additionalFields,
+			};
+
+			const body: IDataObject = {
+				data: [eventData],
+				duplicate_check_fields: duplicateCheckFields,
+			};
+
+			const response = await zohoBiginApiRequest.call(
+				context,
+				'POST',
+				'/Events/upsert',
+				body,
+				{},
+			);
+
+			return response.data?.[0]?.details || {};
+
 		} else if (operation === 'searchEvents') {
 			const searchTerm = context.getNodeParameter('searchTerm', itemIndex) as string;
 			const searchField = context.getNodeParameter('searchField', itemIndex, 'Event_Title') as string;
@@ -3306,6 +3928,31 @@ export class ZohoBigin implements INodeType {
 			);
 
 			return response.data || [];
+
+		} else if (operation === 'getDeletedRecords') {
+			return await ZohoBigin.getDeletedRecords(context, itemIndex, 'Events');
+
+		} else if (operation === 'getFields') {
+			// Use cached metadata to reduce API calls
+			const cacheKey = 'fields:Events';
+			const result = await ZohoBigin.getCachedMetadata(cacheKey, async () => {
+				const response = await zohoBiginApiRequest.call(
+					context,
+					'GET',
+					'/settings/fields?module=Events',
+					{},
+					{},
+				);
+				return { fields: response.fields || [] };
+			});
+
+			return result.fields as IDataObject[];
+
+		} else if (operation === 'getModules') {
+			return await ZohoBigin.getModules(context);
+
+		} else if (operation === 'getOrganization') {
+			return await ZohoBigin.getOrganization(context);
 		}
 
 		throw new NodeOperationError(
