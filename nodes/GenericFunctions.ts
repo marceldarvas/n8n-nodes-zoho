@@ -15,6 +15,20 @@ import type {
 } from './types';
 
 /**
+ * Type guard to check if context has a logger property
+ */
+function hasLogger(context: unknown): context is { logger: { log: (level: string, message: string, meta?: unknown) => void; warn: (message: string, meta?: unknown) => void } } {
+    return (
+        typeof context === 'object' &&
+        context !== null &&
+        'logger' in context &&
+        typeof (context as any).logger === 'object' &&
+        typeof (context as any).logger.log === 'function' &&
+        typeof (context as any).logger.warn === 'function'
+    );
+}
+
+/**
  * Check Zoho API response for error status and throw appropriate error
  * @param responseData - The API response data to check
  * @throws {NodeOperationError} When the response contains an error status
@@ -353,8 +367,8 @@ function logMetrics(
         };
 
         // Use n8n's logger if available, otherwise fall back to console
-        if (context && 'logger' in context && typeof (context as any).logger?.log === 'function') {
-            (context as any).logger.log(logMessage.level, logMessage.message, logMessage);
+        if (hasLogger(context)) {
+            context.logger.log(logMessage.level, logMessage.message, logMessage);
         } else {
             console.log(JSON.stringify(logMessage));
         }
@@ -437,8 +451,8 @@ async function executeWithRetry(
             };
 
             // Use n8n's logger if available, otherwise fall back to console
-            if (context && 'logger' in context && typeof (context as any).logger?.warn === 'function') {
-                (context as any).logger.warn(retryLogMessage.message, retryLogMessage);
+            if (hasLogger(context)) {
+                context.logger.warn(retryLogMessage.message, retryLogMessage);
             } else {
                 console.warn(JSON.stringify(retryLogMessage));
             }
