@@ -8,6 +8,7 @@ import {
 	throwOnErrorStatus,
 	zohoApiRequest,
 	zohoSubscriptionsApiRequest,
+	getBiginBaseUrl,
 } from '../GenericFunctions';
 
 describe('GenericFunctions', () => {
@@ -333,6 +334,47 @@ describe('GenericFunctions', () => {
 					}),
 				);
 			}
+		});
+	});
+
+	describe('getBiginBaseUrl', () => {
+		const testCases = [
+			{
+				input: 'https://accounts.zoho.com/oauth/v2/token',
+				expected: 'https://www.zohoapis.com/bigin/v1',
+				region: 'US',
+			},
+			{
+				input: 'https://accounts.zoho.eu/oauth/v2/token',
+				expected: 'https://www.zohoapis.eu/bigin/v1',
+				region: 'EU',
+			},
+			{
+				input: 'https://accounts.zoho.com.au/oauth/v2/token',
+				expected: 'https://www.zohoapis.com.au/bigin/v1',
+				region: 'AU',
+			},
+			{
+				input: 'https://accounts.zoho.in/oauth/v2/token',
+				expected: 'https://www.zohoapis.in/bigin/v1',
+				region: 'IN',
+			},
+			{
+				input: 'https://accounts.zoho.com.cn/oauth/v2/token',
+				expected: 'https://www.zohoapis.com.cn/bigin/v1',
+				region: 'CN',
+			},
+			{
+				input: 'https://unknown.domain.com/oauth/v2/token',
+				expected: 'https://www.zohoapis.com/bigin/v1',
+				region: 'fallback to US',
+			},
+		];
+
+		testCases.forEach(({ input, expected, region }) => {
+			it(`should return correct base URL for ${region}`, () => {
+				expect(getBiginBaseUrl(input)).toBe(expected);
+			});
 		});
 	});
 });

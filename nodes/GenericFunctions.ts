@@ -15,6 +15,40 @@ import type {
 } from './types';
 
 /**
+ * Interface for objects with n8n logger support
+ */
+interface WithLogger {
+    logger: {
+        log: (level: string, message: string, meta?: unknown) => void;
+        warn: (message: string, meta?: unknown) => void;
+    };
+}
+
+/**
+ * Type guard to check if context has a logger property
+ */
+function hasLogger(context: unknown): context is WithLogger {
+    if (typeof context !== 'object' || context === null || !('logger' in context)) {
+        return false;
+    }
+
+    const contextWithLogger = context as { logger?: unknown };
+    const logger = contextWithLogger.logger;
+
+    if (typeof logger !== 'object' || logger === null) {
+        return false;
+    }
+
+    const loggerObj = logger as Record<string, unknown>;
+    return (
+        'log' in loggerObj &&
+        'warn' in loggerObj &&
+        typeof loggerObj.log === 'function' &&
+        typeof loggerObj.warn === 'function'
+    );
+}
+
+/**
  * Check Zoho API response for error status and throw appropriate error
  * @param responseData - The API response data to check
  * @throws {NodeOperationError} When the response contains an error status
@@ -58,6 +92,25 @@ export function getSubscriptionsBaseUrl(accessTokenUrl: string): string {
         'https://accounts.zoho.com.au/oauth/v2/token': 'https://www.zohoapis.com.au/billing/v1',
         'https://accounts.zoho.in/oauth/v2/token': 'https://www.zohoapis.in/billing/v1',
         'https://accounts.zoho.com.cn/oauth/v2/token': 'https://www.zohoapis.com.cn/billing/v1',
+    };
+
+    return urlMap[accessTokenUrl] || urlMap['https://accounts.zoho.com/oauth/v2/token'];
+}
+
+/**
+ * Map Zoho OAuth2 token URL to the appropriate Bigin API base URL.
+ * Supports all Zoho regions: US, EU, AU, IN, CN.
+ *
+ * @param accessTokenUrl - The OAuth2 token URL from credentials
+ * @returns The corresponding Bigin API base URL
+ */
+export function getBiginBaseUrl(accessTokenUrl: string): string {
+    const urlMap: { [key: string]: string } = {
+        'https://accounts.zoho.com/oauth/v2/token': 'https://www.zohoapis.com/bigin/v1',
+        'https://accounts.zoho.eu/oauth/v2/token': 'https://www.zohoapis.eu/bigin/v1',
+        'https://accounts.zoho.com.au/oauth/v2/token': 'https://www.zohoapis.com.au/bigin/v1',
+        'https://accounts.zoho.in/oauth/v2/token': 'https://www.zohoapis.in/bigin/v1',
+        'https://accounts.zoho.com.cn/oauth/v2/token': 'https://www.zohoapis.com.cn/bigin/v1',
     };
 
     return urlMap[accessTokenUrl] || urlMap['https://accounts.zoho.com/oauth/v2/token'];
@@ -281,6 +334,258 @@ export async function zohoCalendarApiRequest(
         const args = errorData
             ? {
                 message: errorData.message || 'The Zoho Calendar API returned an error.',
+                description: JSON.stringify(errorData, null, 2),
+            }
+            : undefined;
+        throw new NodeApiError(this.getNode(), error as JsonObject, args);
+    }
+}
+
+/**
+ * Make an authenticated API request to Zoho Bigin CRM API.
+ * Bigin API follows the CRM v2 API structure with JSON request/response format.
+ *
+ * @param method - HTTP method (GET, POST, PUT, DELETE, etc.)
+ * @param endpoint - API endpoint path (e.g., '/Pipelines', '/Contacts/{id}')
+ * @param body - Request body data
+ * @param qs - Query string parameters
+ * @param headers - Additional headers to include in the request
+ * @param additionalOptions - Additional request options (formData, encoding, json, etc.)
+ * @returns Promise resolving to the API response data
+ * @throws {NodeApiError} When the API request fails
+ * @see https://www.zoho.com/bigin/developer/docs/api/v1/
+ */
+/**
+ * Interface for operation metrics tracking
+ */
+export interface OperationMetrics {
+    operation: string;
+    endpoint: string;
+    method: string;
+    duration: number;
+    success: boolean;
+    retryCount: number;
+    recordCount?: number;
+    timestamp: Date;
+}
+
+/**
+ * Log operation metrics for monitoring and debugging
+ * 
+ * @param context - n8n execution context (optional). When undefined, falls back to console.log for logging.
+ * @param metrics - Operation metrics to log
+ * 
+ * **Logging Behavior:**
+ * - If context has a logger, uses n8n's built-in logging system
+ * - Otherwise, falls back to console.log for compatibility
+ * - Only logs when duration > 1000ms, operation failed, or retries occurred
+ */
+function logMetrics(
+    context: IExecuteFunctions | IHookFunctions | ILoadOptionsFunctions | undefined,
+    metrics: OperationMetrics,
+): void {
+    // Only log if duration is significant or if operation failed
+    if (metrics.duration > 1000 || !metrics.success || metrics.retryCount > 0) {
+        const logMessage = {
+            level: metrics.success ? 'info' : 'error',
+            message: 'Bigin API operation',
+            ...metrics,
+        };
+
+        // Use n8n's logger if available, otherwise fall back to console
+        if (hasLogger(context)) {
+            context.logger.log(logMessage.level, logMessage.message, logMessage);
+        } else {
+            console.log(JSON.stringify(logMessage));
+        }
+    }
+}
+
+/**
+ * Execute an HTTP request with automatic retry logic for rate limiting and transient errors.
+ * Implements exponential backoff strategy for retries.
+ *
+ * @param context - n8n execution context
+ * @param options - HTTP request options
+ * @param maxRetries - Maximum number of retry attempts (default: 3)
+ * @returns Promise resolving to the response data
+ * @throws {NodeApiError} When all retry attempts are exhausted
+ */
+async function executeWithRetry(
+    context: IExecuteFunctions | IHookFunctions | ILoadOptionsFunctions,
+    options: IRequestOptions,
+    maxRetries = 3,
+): Promise<any> {
+    let lastError: any;
+    let retryCount = 0;
+    const startTime = Date.now();
+
+    for (let attempt = 0; attempt < maxRetries; attempt++) {
+        try {
+            const responseData = await context.helpers.request!(options);
+
+            // Log successful operation metrics
+            logMetrics(context, {
+                operation: 'api_request',
+                endpoint: options.url || '',
+                method: options.method || 'GET',
+                duration: Date.now() - startTime,
+                success: true,
+                retryCount,
+                timestamp: new Date(),
+            });
+
+            return responseData;
+        } catch (error: any) {
+            lastError = error;
+            retryCount = attempt + 1;
+
+            // Check if we should retry based on error type
+            const statusCode = error.statusCode || error.response?.statusCode;
+
+            // Don't retry on client errors (4xx), except for 429 (rate limit)
+            if (statusCode >= 400 && statusCode < 500 && statusCode !== 429) {
+                throw error;
+            }
+
+            // Don't retry on the last attempt
+            if (attempt === maxRetries - 1) {
+                break;
+            }
+
+            // Calculate backoff delay
+            let backoffDelay: number;
+
+            if (statusCode === 429) {
+                // For rate limiting, use Retry-After header if available
+                const retryAfter = error.response?.headers?.['retry-after'];
+                backoffDelay = retryAfter ? parseInt(retryAfter, 10) * 1000 : (attempt + 1) * 2000;
+            } else {
+                // For other errors, use exponential backoff: 1s, 2s, 4s
+                backoffDelay = Math.pow(2, attempt) * 1000;
+            }
+
+            // Log retry attempt
+            const retryLogMessage = {
+                level: 'warn',
+                message: 'Retrying Bigin API request',
+                endpoint: options.url,
+                attempt: attempt + 1,
+                maxRetries,
+                backoffDelay,
+                statusCode,
+            };
+
+            // Use n8n's logger if available, otherwise fall back to console
+            if (hasLogger(context)) {
+                context.logger.warn(retryLogMessage.message, retryLogMessage);
+            } else {
+                console.warn(JSON.stringify(retryLogMessage));
+            }
+
+            // Wait before retrying
+            await new Promise(resolve => setTimeout(resolve, backoffDelay));
+        }
+    }
+
+    // Log failed operation metrics
+    logMetrics(context, {
+        operation: 'api_request',
+        endpoint: options.url || '',
+        method: options.method || 'GET',
+        duration: Date.now() - startTime,
+        success: false,
+        retryCount,
+        timestamp: new Date(),
+    });
+
+    // All retries exhausted, throw the last error
+    throw lastError;
+}
+
+/**
+ * Make an authenticated API request to Zoho Bigin CRM API with retry logic and performance monitoring.
+ * Bigin API follows the CRM v2 API structure with JSON request/response format.
+ *
+ * **Performance Features:**
+ * - Automatic retry on rate limiting (HTTP 429) with exponential backoff
+ * - Retry on transient server errors (5xx) with exponential backoff
+ * - Operation metrics logging for monitoring and debugging
+ * - Respects Retry-After headers for rate limiting
+ *
+ * @param method - HTTP method (GET, POST, PUT, DELETE, etc.)
+ * @param endpoint - API endpoint path (e.g., '/Pipelines', '/Contacts/{id}')
+ * @param body - Request body data
+ * @param qs - Query string parameters
+ * @param headers - Additional headers to include in the request
+ * @param additionalOptions - Additional request options (formData, encoding, json, etc.)
+ * @returns Promise resolving to the API response data
+ * @throws {NodeApiError} When the API request fails after all retries
+ * @see https://www.zoho.com/bigin/developer/docs/api/v1/
+ */
+export async function zohoBiginApiRequest(
+    this: IExecuteFunctions | IHookFunctions | ILoadOptionsFunctions,
+    method: IHttpRequestMethods,
+    endpoint: string,
+    body: IDataObject = {},
+    qs: IDataObject = {},
+    headers?: IDataObject,
+    additionalOptions?: IDataObject,
+): Promise<any> {
+    const {access_token} = await getAccessTokenData.call(this);
+    const credentials = await this.getCredentials('zohoApi');
+    const baseUrl = getBiginBaseUrl(credentials.accessTokenUrl as string);
+
+    const options: IRequestOptions = {
+        method,
+        url: `${baseUrl}${endpoint}`,
+        headers: {
+            Authorization: 'Zoho-oauthtoken ' + access_token,
+            ...(headers || {}),
+        },
+        json: true,
+    };
+
+    // Handle file uploads with formData
+    if (additionalOptions?.formData) {
+        options.formData = additionalOptions.formData as IDataObject;
+        // Remove Content-Type header for multipart/form-data (auto-set by request library)
+        delete options.headers!['Content-Type'];
+    } else {
+        // Standard JSON content type for non-file operations
+        options.headers!['Content-Type'] = 'application/json';
+        if (Object.keys(body).length) {
+            options.body = body;
+        }
+    }
+
+    if (Object.keys(qs).length) {
+        options.qs = qs;
+    }
+
+    // Handle binary downloads
+    if (additionalOptions?.encoding === null) {
+        options.encoding = null;
+    }
+    if (additionalOptions?.json === false) {
+        options.json = false;
+    }
+
+    try {
+        // Use retry logic for all requests
+        const responseData = await executeWithRetry(this, options);
+
+        // Don't check error status for binary downloads
+        if (additionalOptions?.json !== false) {
+            throwOnErrorStatus.call(this, responseData as IDataObject);
+        }
+
+        return responseData;
+    } catch (error) {
+        const errorData = (error as any).cause?.data;
+        const args = errorData
+            ? {
+                message: errorData.message || 'The Zoho Bigin API returned an error.',
                 description: JSON.stringify(errorData, null, 2),
             }
             : undefined;
