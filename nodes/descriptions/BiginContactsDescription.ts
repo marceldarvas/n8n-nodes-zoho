@@ -18,6 +18,7 @@ export const contactsOperations: INodeProperties[] = [
 			{ name: 'Upsert', value: 'upsertContact', description: 'Create or update a contact (idempotent)' },
 			{ name: 'Delete', value: 'deleteContact', description: 'Delete a contact' },
 			{ name: 'Search', value: 'searchContacts', description: 'Search contacts' },
+			{ name: 'Execute COQL Query', value: 'executeCOQL', description: 'Execute a COQL query for advanced filtering' },
 			{ name: 'Get Deleted Records', value: 'getDeletedRecords', description: 'Get deleted contacts with metadata' },
 			{ name: 'Get Fields', value: 'getFields', description: 'Get metadata for contact fields' },
 			{ name: 'Get Modules', value: 'getModules', description: 'Get all available modules' },
@@ -762,5 +763,25 @@ export const contactsFields: INodeProperties[] = [
 		default: '',
 		description: 'IDs of records to transfer (comma-separated for bulk, max 500)',
 		placeholder: '4876876000000624001, 4876876000000624002',
+	},
+
+	// COQL Query
+	{
+		displayName: 'COQL Query',
+		name: 'coqlQuery',
+		type: 'string',
+		typeOptions: {
+			rows: 4,
+		},
+		required: true,
+		displayOptions: {
+			show: {
+				resource: ['contact'],
+				operation: ['executeCOQL'],
+			},
+		},
+		default: 'SELECT First_Name, Last_Name, Email FROM Contacts WHERE Email IS NOT NULL LIMIT 10',
+		description: 'SQL-like COQL query to execute. Use "Get Fields" operation first to discover available field names. Supports WHERE, ORDER BY, LIMIT (max 200 per call, 10000 total). Can join via lookup fields using dot notation (e.g., Account_Name.Account_Name). See <a href="https://www.bigin.com/developer/docs/apis/v2/coql-overview.html" target="_blank">COQL documentation</a>.',
+		placeholder: 'SELECT First_Name, Last_Name, Email, Phone FROM Contacts WHERE Account_Name.Account_Name = \'Acme Corp\'',
 	},
 ];
