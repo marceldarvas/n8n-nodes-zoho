@@ -7,6 +7,7 @@ import {
 	throwOnErrorStatus,
 	zohoApiRequest,
 	zohoSubscriptionsApiRequest,
+	zohoCalendarApiRequest,
 	zohoBiginApiRequest,
 	getBiginBaseUrl,
 } from '../GenericFunctions';
@@ -356,6 +357,106 @@ describe('GenericFunctions', () => {
 				zohoBiginApiRequest.call(mockContext, 'GET', '/Contacts'),
 			).rejects.toThrow();
 			expect(mockRequestOAuth2).toHaveBeenCalledTimes(1);
+		});
+	});
+
+	describe('zohoCalendarApiRequest', () => {
+		const mockNode: INode = {
+			id: 'test-node-id',
+			name: 'Test Node',
+			type: 'n8n-nodes-zoho.zoho',
+			typeVersion: 1,
+			position: [0, 0],
+			parameters: {},
+		};
+
+		let mockContext: IExecuteFunctions;
+		let mockRequestOAuth2: jest.Mock;
+		let mockRequest: jest.Mock;
+
+		beforeEach(() => {
+			mockRequestOAuth2 = jest.fn();
+			mockRequest = jest.fn(); // must never be called: raw request = token-storm regression
+			mockContext = {
+				getNode: () => mockNode,
+				getCredentials: jest.fn().mockResolvedValue({
+					accessTokenUrl: 'https://accounts.zoho.com/oauth/v2/token',
+				}),
+				helpers: {
+					requestOAuth2: mockRequestOAuth2,
+					request: mockRequest,
+				},
+			} as unknown as IExecuteFunctions;
+		});
+
+		it('should delegate auth to requestOAuth2 with the zohoApi credential and correct options shape', async () => {
+			const mockResponse = { events: [] };
+			mockRequestOAuth2.mockResolvedValue(mockResponse);
+
+			const result = await zohoCalendarApiRequest.call(
+				mockContext,
+				'GET',
+				'/calendars/primary/events',
+				{},
+				{ range: 'today' },
+			);
+
+			expect(result).toEqual(mockResponse);
+			expect(mockRequestOAuth2).toHaveBeenCalledTimes(1);
+			const [credentialType, options, oAuth2Options] = mockRequestOAuth2.mock.calls[0];
+			expect(credentialType).toBe('zohoApi');
+			expect(options).toEqual(
+				expect.objectContaining({
+					method: 'GET',
+					url: 'https://calendar.zoho.com/api/v1/calendars/primary/events',
+					qs: { range: 'today' },
+					json: true,
+				}),
+			);
+			// Authorization header must NOT be set — n8n injects it via requestOAuth2
+			expect(options.headers?.Authorization).toBeUndefined();
+			// Content-Type should be preserved
+			expect(options.headers?.['Content-Type']).toBe('application/json');
+			expect(oAuth2Options).toEqual({ tokenType: 'Zoho-oauthtoken' });
+		});
+
+		it('should never call the raw request helper (token-refresh storm regression)', async () => {
+			mockRequestOAuth2.mockResolvedValue({});
+
+			await zohoCalendarApiRequest.call(
+				mockContext,
+				'GET',
+				'/calendars/primary/events',
+			);
+
+			expect(mockRequest).not.toHaveBeenCalled();
+		});
+
+		it('should include request body when provided', async () => {
+			mockRequestOAuth2.mockResolvedValue({});
+
+			await zohoCalendarApiRequest.call(
+				mockContext,
+				'POST',
+				'/calendars/primary/events',
+				{ title: 'Meeting', start: '2026-07-07T10:00:00Z' },
+				{},
+			);
+
+			const [, options] = mockRequestOAuth2.mock.calls[0];
+			expect(options.body).toEqual({ title: 'Meeting', start: '2026-07-07T10:00:00Z' });
+		});
+
+		it('should throw error when requestOAuth2 rejects', async () => {
+			mockRequestOAuth2.mockRejectedValue(new Error('Network error'));
+
+			await expect(
+				zohoCalendarApiRequest.call(
+					mockContext,
+					'GET',
+					'/calendars/primary/events',
+				),
+			).rejects.toThrow();
 		});
 	});
 
