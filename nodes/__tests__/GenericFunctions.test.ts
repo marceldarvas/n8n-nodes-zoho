@@ -134,7 +134,7 @@ describe('GenericFunctions', () => {
 				}),
 			);
 			expect(options.headers?.Authorization).toBeUndefined();
-			expect(oAuth2Options).toEqual({ tokenType: 'Zoho-oauthtoken' });
+			expect(oAuth2Options).toBeUndefined();
 		});
 
 		it('should never call the raw request helper (token-refresh storm regression)', async () => {
@@ -236,7 +236,7 @@ describe('GenericFunctions', () => {
 			expect(options.headers).toEqual({
 				'X-com-zoho-subscriptions-organizationid': '700000123',
 			});
-			expect(oAuth2Options).toEqual({ tokenType: 'Zoho-oauthtoken' });
+			expect(oAuth2Options).toBeUndefined();
 			expect(mockRequest).not.toHaveBeenCalled();
 		});
 
@@ -330,7 +330,7 @@ describe('GenericFunctions', () => {
 			expect(options.url).toBe('https://www.zohoapis.eu/bigin/v1/Contacts');
 			expect(options.headers?.Authorization).toBeUndefined();
 			expect(options.headers?.['Content-Type']).toBe('application/json');
-			expect(oAuth2Options).toEqual({ tokenType: 'Zoho-oauthtoken' });
+			expect(oAuth2Options).toBeUndefined();
 			expect(mockRequest).not.toHaveBeenCalled();
 		});
 
@@ -417,7 +417,7 @@ describe('GenericFunctions', () => {
 			expect(options.headers?.Authorization).toBeUndefined();
 			// Content-Type should be preserved
 			expect(options.headers?.['Content-Type']).toBe('application/json');
-			expect(oAuth2Options).toEqual({ tokenType: 'Zoho-oauthtoken' });
+			expect(oAuth2Options).toBeUndefined();
 		});
 
 		it('should never call the raw request helper (token-refresh storm regression)', async () => {

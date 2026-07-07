@@ -151,9 +151,7 @@ export async function zohoApiRequest(
 
      */
     try {
-        const responseData = await this.helpers.requestOAuth2.call(this, 'zohoApi', options, {
-            tokenType: 'Zoho-oauthtoken',
-        });
+        const responseData = await this.helpers.requestOAuth2.call(this, 'zohoApi', options);
         throwOnErrorStatus.call(this, responseData as IDataObject);
         return responseData;
     } catch (error) {
@@ -202,9 +200,7 @@ export async function zohoSubscriptionsApiRequest(
         options.body = body;
     }
     try {
-        const responseData = await this.helpers.requestOAuth2.call(this, 'zohoApi', options, {
-            tokenType: 'Zoho-oauthtoken',
-        });
+        const responseData = await this.helpers.requestOAuth2.call(this, 'zohoApi', options);
         throwOnErrorStatus.call(this, responseData);
         return responseData;
     } catch (error) {
@@ -284,9 +280,7 @@ export async function zohoCalendarApiRequest(
     }
 
     try {
-        const responseData = await this.helpers.requestOAuth2.call(this, 'zohoApi', options, {
-            tokenType: 'Zoho-oauthtoken',
-        });
+        const responseData = await this.helpers.requestOAuth2.call(this, 'zohoApi', options);
         return responseData;
     } catch (error) {
         const errorData = (error as any).cause?.data;
@@ -381,9 +375,7 @@ async function executeWithRetry(
 
     for (let attempt = 0; attempt < maxRetries; attempt++) {
         try {
-            const responseData = await context.helpers.requestOAuth2.call(context, 'zohoApi', options, {
-                tokenType: 'Zoho-oauthtoken',
-            });
+            const responseData = await context.helpers.requestOAuth2.call(context, 'zohoApi', options);
 
             // Log successful operation metrics
             logMetrics(context, {
