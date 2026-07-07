@@ -89,35 +89,27 @@ describe('GenericFunctions', () => {
 		};
 
 		let mockContext: IExecuteFunctions;
+		let mockRequestOAuth2: jest.Mock;
 		let mockRequest: jest.Mock;
 
 		beforeEach(() => {
-			mockRequest = jest.fn();
+			mockRequestOAuth2 = jest.fn();
+			mockRequest = jest.fn(); // must never be called: raw request = token-storm regression
 			mockContext = {
 				getNode: () => mockNode,
 				getCredentials: jest.fn().mockResolvedValue({
-					oauthTokenData: {
-						access_token: 'test-access-token',
-						refresh_token: 'test-refresh-token',
-						api_domain: 'https://www.zohoapis.com',
-						expires_in: 0, // Set to 0 to skip token refresh in tests
-					},
 					accessTokenUrl: 'https://accounts.zoho.com/oauth/v2/token',
-					clientId: 'test-client-id',
-					clientSecret: 'test-client-secret',
-					redirectUri: 'https://test.redirect.uri',
 				}),
 				helpers: {
+					requestOAuth2: mockRequestOAuth2,
 					request: mockRequest,
 				},
 			} as unknown as IExecuteFunctions;
 		});
 
-		it('should make a successful API request with proper headers', async () => {
-			const mockResponse = {
-				data: [{ status: 'success', id: '123' }],
-			};
-			mockRequest.mockResolvedValue(mockResponse);
+		it('should delegate auth to requestOAuth2 with the zohoApi credential', async () => {
+			const mockResponse = { data: [{ status: 'success', id: '123' }] };
+			mockRequestOAuth2.mockResolvedValue(mockResponse);
 
 			const result = await zohoApiRequest.call(
 				mockContext,
@@ -129,22 +121,36 @@ describe('GenericFunctions', () => {
 			);
 
 			expect(result).toEqual(mockResponse);
-			expect(mockRequest).toHaveBeenCalledWith(
+			expect(mockRequestOAuth2).toHaveBeenCalledTimes(1);
+			const [credentialType, options, oAuth2Options] = mockRequestOAuth2.mock.calls[0];
+			expect(credentialType).toBe('zohoApi');
+			expect(options).toEqual(
 				expect.objectContaining({
 					method: 'GET',
 					baseURL: 'https://www.zohoapis.com',
 					uri: '/api/v2/users',
-					headers: {
-						Authorization: 'Zoho-oauthtoken test-access-token',
-					},
 					form: { page: 1 },
 				}),
 			);
+			expect(options.headers?.Authorization).toBeUndefined();
+			expect(oAuth2Options).toEqual({ tokenType: 'Zoho-oauthtoken' });
+		});
+
+		it('should never call the raw request helper (token-refresh storm regression)', async () => {
+			mockRequestOAuth2.mockResolvedValue({ data: [] });
+
+			await zohoApiRequest.call(
+				mockContext,
+				'GET',
+				'https://www.zohoapis.com',
+				'/api/v2/users',
+			);
+
+			expect(mockRequest).not.toHaveBeenCalled();
 		});
 
 		it('should throw error when request fails', async () => {
-			const mockError = new Error('Network error');
-			mockRequest.mockRejectedValue(mockError);
+			mockRequestOAuth2.mockRejectedValue(new Error('Network error'));
 
 			await expect(
 				zohoApiRequest.call(
@@ -157,10 +163,9 @@ describe('GenericFunctions', () => {
 		});
 
 		it('should throw error when response contains error status', async () => {
-			const mockErrorResponse = {
+			mockRequestOAuth2.mockResolvedValue({
 				data: [{ status: 'error', message: 'Invalid request' }],
-			};
-			mockRequest.mockResolvedValue(mockErrorResponse);
+			});
 
 			await expect(
 				zohoApiRequest.call(

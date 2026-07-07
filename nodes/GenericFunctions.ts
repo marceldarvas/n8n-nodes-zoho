@@ -172,14 +172,10 @@ export async function zohoApiRequest(
     body: IDataObject = {},
     qs: IDataObject = {},
 ): Promise<IDataObject> {
-    const {access_token} = await getAccessTokenData.call(this);
     const options: IRequestOptions = {
         method,
         baseURL,
         uri,
-        headers: {
-            Authorization: 'Zoho-oauthtoken ' + access_token,
-        },
         // json: false,
         form: qs  // grant_type: 'refresh_token',
     };
@@ -193,7 +189,9 @@ export async function zohoApiRequest(
 
      */
     try {
-        const responseData = await this.helpers.request!(options);
+        const responseData = await this.helpers.requestOAuth2.call(this, 'zohoApi', options, {
+            tokenType: 'Zoho-oauthtoken',
+        });
         throwOnErrorStatus.call(this, responseData as IDataObject);
         return responseData;
     } catch (error) {
