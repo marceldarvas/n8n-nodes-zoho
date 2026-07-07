@@ -10,7 +10,6 @@ import type {
 import {NodeApiError, NodeOperationError} from 'n8n-workflow';
 
 import type {
-    ZohoOAuth2ApiCredentials,
     ZohoApiErrorData,
 } from './types';
 
@@ -116,43 +115,6 @@ export function getBiginBaseUrl(accessTokenUrl: string): string {
     return urlMap[accessTokenUrl] || urlMap['https://accounts.zoho.com/oauth/v2/token'];
 }
 
-/**
- * Retrieve and refresh Zoho OAuth2 token data.
- */
-async function getAccessTokenData(
-    this: IExecuteFunctions | IHookFunctions | ILoadOptionsFunctions,
-): Promise<{
-    api_domain: string;
-    access_token: string;
-    refresh_token: string;
-    expires_in: number // seconds, 3600 default
-}> {
-    const credentials = await this.getCredentials<ZohoOAuth2ApiCredentials>('zohoApi');
-    if (!credentials.oauthTokenData) {
-        throw new NodeOperationError(this.getNode(), 'Missing Zoho OAuth2 token data in credentials.');
-    }
-    let {api_domain, access_token, refresh_token, expires_in} = credentials.oauthTokenData;
-    if (expires_in > 0) {
-        const urlObject: IRequestOptions = {
-            method: 'POST',
-            url: credentials.accessTokenUrl,
-            form: {
-                grant_type: 'refresh_token',
-                refresh_token,
-                client_id: credentials.clientId,
-                client_secret: credentials.clientSecret,
-                redirect_uri: credentials.redirectUri,
-            },
-            json: true,
-        };
-        const tokenResponse = await this.helpers.request(urlObject);
-        access_token = tokenResponse.access_token;
-        refresh_token = tokenResponse.refresh_token || refresh_token;
-        api_domain = tokenResponse.api_domain;
-        expires_in = tokenResponse.expires_in;
-    }
-    return {api_domain, access_token, refresh_token, expires_in};
-}
 
 /**
  * Make an authenticated API request to Zoho APIs (Mail, Tasks, Sheets, etc.)
@@ -172,14 +134,10 @@ export async function zohoApiRequest(
     body: IDataObject = {},
     qs: IDataObject = {},
 ): Promise<IDataObject> {
-    const {access_token} = await getAccessTokenData.call(this);
     const options: IRequestOptions = {
         method,
         baseURL,
         uri,
-        headers: {
-            Authorization: 'Zoho-oauthtoken ' + access_token,
-        },
         // json: false,
         form: qs  // grant_type: 'refresh_token',
     };
@@ -193,7 +151,7 @@ export async function zohoApiRequest(
 
      */
     try {
-        const responseData = await this.helpers.request!(options);
+        const responseData = await this.helpers.requestOAuth2.call(this, 'zohoApi', options);
         throwOnErrorStatus.call(this, responseData as IDataObject);
         return responseData;
     } catch (error) {
@@ -227,12 +185,10 @@ export async function zohoSubscriptionsApiRequest(
     qs: IDataObject = {},
     organizationId: string,
 ): Promise<IDataObject> {
-    const {access_token} = await getAccessTokenData.call(this);
     const options: IRequestOptions = {
         method,
         uri,
         headers: {
-            Authorization: 'Zoho-oauthtoken ' + access_token,
             'X-com-zoho-subscriptions-organizationid': organizationId,
         },
         json: true,
@@ -244,7 +200,7 @@ export async function zohoSubscriptionsApiRequest(
         options.body = body;
     }
     try {
-        const responseData = await this.helpers.request!(options);
+        const responseData = await this.helpers.requestOAuth2.call(this, 'zohoApi', options);
         throwOnErrorStatus.call(this, responseData);
         return responseData;
     } catch (error) {
@@ -303,8 +259,6 @@ export async function zohoCalendarApiRequest(
     body: IDataObject = {},
     qs: IDataObject = {},
 ) {
-    const {access_token} = await getAccessTokenData.call(this);
-
     // Zoho Calendar API base URL
     const baseUrl = 'https://calendar.zoho.com/api/v1';
 
@@ -312,7 +266,6 @@ export async function zohoCalendarApiRequest(
         method,
         url: `${baseUrl}${endpoint}`,
         headers: {
-            Authorization: 'Zoho-oauthtoken ' + access_token,
             'Content-Type': 'application/json',
         },
         json: true,
@@ -327,7 +280,7 @@ export async function zohoCalendarApiRequest(
     }
 
     try {
-        const responseData = await this.helpers.request!(options);
+        const responseData = await this.helpers.requestOAuth2.call(this, 'zohoApi', options);
         return responseData;
     } catch (error) {
         const errorData = (error as any).cause?.data;
@@ -422,7 +375,7 @@ async function executeWithRetry(
 
     for (let attempt = 0; attempt < maxRetries; attempt++) {
         try {
-            const responseData = await context.helpers.request!(options);
+            const responseData = await context.helpers.requestOAuth2.call(context, 'zohoApi', options);
 
             // Log successful operation metrics
             logMetrics(context, {
@@ -532,7 +485,6 @@ export async function zohoBiginApiRequest(
     headers?: IDataObject,
     additionalOptions?: IDataObject,
 ): Promise<any> {
-    const {access_token} = await getAccessTokenData.call(this);
     const credentials = await this.getCredentials('zohoApi');
     const baseUrl = getBiginBaseUrl(credentials.accessTokenUrl as string);
 
@@ -540,7 +492,6 @@ export async function zohoBiginApiRequest(
         method,
         url: `${baseUrl}${endpoint}`,
         headers: {
-            Authorization: 'Zoho-oauthtoken ' + access_token,
             ...(headers || {}),
         },
         json: true,

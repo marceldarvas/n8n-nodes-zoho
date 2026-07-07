@@ -1,6 +1,6 @@
 {
   "name": "n8n-nodes-zoho",
-  "version": "1.0.2",
+  "version": "1.0.3",
   "author": "Vladimir Vlach",
   "license": "GPL-3.0",
   "description": "Zoho support for n8n (Sheets, Billing, Tasks, Email, Calendar, Bigin CRM)",
