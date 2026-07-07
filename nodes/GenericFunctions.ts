@@ -225,12 +225,10 @@ export async function zohoSubscriptionsApiRequest(
     qs: IDataObject = {},
     organizationId: string,
 ): Promise<IDataObject> {
-    const {access_token} = await getAccessTokenData.call(this);
     const options: IRequestOptions = {
         method,
         uri,
         headers: {
-            Authorization: 'Zoho-oauthtoken ' + access_token,
             'X-com-zoho-subscriptions-organizationid': organizationId,
         },
         json: true,
@@ -242,7 +240,9 @@ export async function zohoSubscriptionsApiRequest(
         options.body = body;
     }
     try {
-        const responseData = await this.helpers.request!(options);
+        const responseData = await this.helpers.requestOAuth2.call(this, 'zohoApi', options, {
+            tokenType: 'Zoho-oauthtoken',
+        });
         throwOnErrorStatus.call(this, responseData);
         return responseData;
     } catch (error) {

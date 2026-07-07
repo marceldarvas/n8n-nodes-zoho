@@ -1,7 +1,6 @@
 import type {
 	IExecuteFunctions,
 	INode,
-	IHttpRequestMethods,
 } from 'n8n-workflow';
 import { NodeOperationError } from 'n8n-workflow';
 import {
@@ -189,156 +188,101 @@ describe('GenericFunctions', () => {
 		};
 
 		let mockContext: IExecuteFunctions;
+		let mockRequestOAuth2: jest.Mock;
 		let mockRequest: jest.Mock;
 
 		beforeEach(() => {
-			// Suppress console.log for cleaner test output
-			jest.spyOn(console, 'log').mockImplementation(() => {});
-
+			mockRequestOAuth2 = jest.fn();
 			mockRequest = jest.fn();
 			mockContext = {
 				getNode: () => mockNode,
 				getCredentials: jest.fn().mockResolvedValue({
-					oauthTokenData: {
-						access_token: 'test-access-token',
-						refresh_token: 'test-refresh-token',
-						api_domain: 'https://www.zohoapis.eu',
-						expires_in: 0, // Set to 0 to skip token refresh in tests
-					},
-					accessTokenUrl: 'https://accounts.zoho.eu/oauth/v2/token',
-					clientId: 'test-client-id',
-					clientSecret: 'test-client-secret',
-					redirectUri: 'https://test.redirect.uri',
+					accessTokenUrl: 'https://accounts.zoho.com/oauth/v2/token',
 				}),
 				helpers: {
+					requestOAuth2: mockRequestOAuth2,
 					request: mockRequest,
 				},
 			} as unknown as IExecuteFunctions;
 		});
 
-		afterEach(() => {
-			jest.restoreAllMocks();
-		});
-
-		it('should make a successful Subscriptions API request with organization header', async () => {
-			const mockResponse = {
-				code: 0,
-				message: 'success',
-				customers: [{ customer_id: '123', display_name: 'Test Customer' }],
-			};
-			mockRequest.mockResolvedValue(mockResponse);
+		it('should delegate auth to requestOAuth2 and keep the organization header', async () => {
+			const mockResponse = { code: 0, subscriptions: [] };
+			mockRequestOAuth2.mockResolvedValue(mockResponse);
 
 			const result = await zohoSubscriptionsApiRequest.call(
 				mockContext,
 				'GET',
-				'https://www.zohoapis.eu/billing/v1/customers',
+				'https://www.zohoapis.com/billing/v1/subscriptions',
 				{},
 				{ page: 1 },
-				'org-123',
+				'700000123',
 			);
 
 			expect(result).toEqual(mockResponse);
-			expect(mockRequest).toHaveBeenCalledWith(
+			expect(mockRequestOAuth2).toHaveBeenCalledTimes(1);
+			const [credentialType, options, oAuth2Options] = mockRequestOAuth2.mock.calls[0];
+			expect(credentialType).toBe('zohoApi');
+			expect(options).toEqual(
 				expect.objectContaining({
 					method: 'GET',
-					uri: 'https://www.zohoapis.eu/billing/v1/customers',
-					headers: {
-						Authorization: 'Zoho-oauthtoken test-access-token',
-						'X-com-zoho-subscriptions-organizationid': 'org-123',
-					},
-					json: true,
+					uri: 'https://www.zohoapis.com/billing/v1/subscriptions',
 					qs: { page: 1 },
+					json: true,
 				}),
 			);
+			expect(options.headers).toEqual({
+				'X-com-zoho-subscriptions-organizationid': '700000123',
+			});
+			expect(oAuth2Options).toEqual({ tokenType: 'Zoho-oauthtoken' });
+			expect(mockRequest).not.toHaveBeenCalled();
 		});
 
 		it('should include request body when provided', async () => {
-			const mockResponse = {
-				code: 0,
-				message: 'success',
-				customer: { customer_id: '456' },
-			};
-			mockRequest.mockResolvedValue(mockResponse);
-
-			const requestBody = {
-				display_name: 'New Customer',
-				email: 'test@example.com',
-			};
+			mockRequestOAuth2.mockResolvedValue({ code: 0 });
 
 			await zohoSubscriptionsApiRequest.call(
 				mockContext,
 				'POST',
-				'https://www.zohoapis.eu/billing/v1/customers',
-				requestBody,
+				'https://www.zohoapis.com/billing/v1/subscriptions',
+				{ plan: { plan_code: 'basic' } },
 				{},
-				'org-123',
+				'700000123',
 			);
 
-			expect(mockRequest).toHaveBeenCalledWith(
-				expect.objectContaining({
-					method: 'POST',
-					body: requestBody,
-				}),
-			);
+			const [, options] = mockRequestOAuth2.mock.calls[0];
+			expect(options.body).toEqual({ plan: { plan_code: 'basic' } });
 		});
 
 		it('should not include qs when query string is empty', async () => {
-			const mockResponse = { code: 0 };
-			mockRequest.mockResolvedValue(mockResponse);
+			mockRequestOAuth2.mockResolvedValue({ code: 0 });
 
 			await zohoSubscriptionsApiRequest.call(
 				mockContext,
 				'GET',
-				'https://www.zohoapis.eu/billing/v1/products',
+				'https://www.zohoapis.com/billing/v1/plans',
 				{},
 				{},
-				'org-123',
+				'700000123',
 			);
 
-			expect(mockRequest).toHaveBeenCalledWith(
-				expect.not.objectContaining({
-					qs: expect.anything(),
-				}),
-			);
+			const [, options] = mockRequestOAuth2.mock.calls[0];
+			expect(options.qs).toBeUndefined();
 		});
 
 		it('should throw error when request fails', async () => {
-			const mockError = new Error('API error');
-			mockRequest.mockRejectedValue(mockError);
+			mockRequestOAuth2.mockRejectedValue(new Error('boom'));
 
 			await expect(
 				zohoSubscriptionsApiRequest.call(
 					mockContext,
 					'GET',
-					'https://www.zohoapis.eu/billing/v1/customers',
+					'https://www.zohoapis.com/billing/v1/plans',
 					{},
 					{},
-					'org-123',
+					'700000123',
 				),
 			).rejects.toThrow();
-		});
-
-		it('should handle different HTTP methods correctly', async () => {
-			const methods: IHttpRequestMethods[] = ['GET', 'POST', 'PUT', 'DELETE', 'PATCH'];
-			const mockResponse = { code: 0 };
-			mockRequest.mockResolvedValue(mockResponse);
-
-			for (const method of methods) {
-				await zohoSubscriptionsApiRequest.call(
-					mockContext,
-					method,
-					'https://www.zohoapis.eu/billing/v1/test',
-					{},
-					{},
-					'org-123',
-				);
-
-				expect(mockRequest).toHaveBeenCalledWith(
-					expect.objectContaining({
-						method,
-					}),
-				);
-			}
 		});
 	});
 
