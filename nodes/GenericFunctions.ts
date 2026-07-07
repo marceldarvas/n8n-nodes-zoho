@@ -420,7 +420,9 @@ async function executeWithRetry(
 
     for (let attempt = 0; attempt < maxRetries; attempt++) {
         try {
-            const responseData = await context.helpers.request!(options);
+            const responseData = await context.helpers.requestOAuth2.call(context, 'zohoApi', options, {
+                tokenType: 'Zoho-oauthtoken',
+            });
 
             // Log successful operation metrics
             logMetrics(context, {
@@ -530,7 +532,6 @@ export async function zohoBiginApiRequest(
     headers?: IDataObject,
     additionalOptions?: IDataObject,
 ): Promise<any> {
-    const {access_token} = await getAccessTokenData.call(this);
     const credentials = await this.getCredentials('zohoApi');
     const baseUrl = getBiginBaseUrl(credentials.accessTokenUrl as string);
 
@@ -538,7 +539,6 @@ export async function zohoBiginApiRequest(
         method,
         url: `${baseUrl}${endpoint}`,
         headers: {
-            Authorization: 'Zoho-oauthtoken ' + access_token,
             ...(headers || {}),
         },
         json: true,

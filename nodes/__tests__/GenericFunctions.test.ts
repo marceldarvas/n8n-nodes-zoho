@@ -7,6 +7,7 @@ import {
 	throwOnErrorStatus,
 	zohoApiRequest,
 	zohoSubscriptionsApiRequest,
+	zohoBiginApiRequest,
 	getBiginBaseUrl,
 } from '../GenericFunctions';
 
@@ -283,6 +284,78 @@ describe('GenericFunctions', () => {
 					'700000123',
 				),
 			).rejects.toThrow();
+		});
+	});
+
+	describe('zohoBiginApiRequest', () => {
+		const mockNode: INode = {
+			id: 'test-node-id',
+			name: 'Test Node',
+			type: 'n8n-nodes-zoho.zohoBigin',
+			typeVersion: 1,
+			position: [0, 0],
+			parameters: {},
+		};
+
+		let mockContext: IExecuteFunctions;
+		let mockRequestOAuth2: jest.Mock;
+		let mockRequest: jest.Mock;
+
+		beforeEach(() => {
+			mockRequestOAuth2 = jest.fn();
+			mockRequest = jest.fn();
+			mockContext = {
+				getNode: () => mockNode,
+				getCredentials: jest.fn().mockResolvedValue({
+					accessTokenUrl: 'https://accounts.zoho.eu/oauth/v2/token',
+				}),
+				helpers: {
+					requestOAuth2: mockRequestOAuth2,
+					request: mockRequest,
+				},
+			} as unknown as IExecuteFunctions;
+		});
+
+		it('should call requestOAuth2 with the region-mapped Bigin base URL', async () => {
+			const mockResponse = { data: [{ status: 'success', id: '1' }] };
+			mockRequestOAuth2.mockResolvedValue(mockResponse);
+
+			const result = await zohoBiginApiRequest.call(mockContext, 'GET', '/Contacts');
+
+			expect(result).toEqual(mockResponse);
+			expect(mockRequestOAuth2).toHaveBeenCalledTimes(1);
+			const [credentialType, options, oAuth2Options] = mockRequestOAuth2.mock.calls[0];
+			expect(credentialType).toBe('zohoApi');
+			expect(options.url).toBe('https://www.zohoapis.eu/bigin/v1/Contacts');
+			expect(options.headers?.Authorization).toBeUndefined();
+			expect(options.headers?.['Content-Type']).toBe('application/json');
+			expect(oAuth2Options).toEqual({ tokenType: 'Zoho-oauthtoken' });
+			expect(mockRequest).not.toHaveBeenCalled();
+		});
+
+		it('should retry on 429 and succeed on the second attempt', async () => {
+			const rateLimitError = Object.assign(new Error('rate limited'), {
+				statusCode: 429,
+				response: { headers: { 'retry-after': '0' } },
+			});
+			mockRequestOAuth2
+				.mockRejectedValueOnce(rateLimitError)
+				.mockResolvedValueOnce({ data: [{ status: 'success' }] });
+
+			const result = await zohoBiginApiRequest.call(mockContext, 'GET', '/Contacts');
+
+			expect(mockRequestOAuth2).toHaveBeenCalledTimes(2);
+			expect(result).toEqual({ data: [{ status: 'success' }] });
+		});
+
+		it('should not retry on non-429 client errors', async () => {
+			const badRequest = Object.assign(new Error('bad request'), { statusCode: 400 });
+			mockRequestOAuth2.mockRejectedValue(badRequest);
+
+			await expect(
+				zohoBiginApiRequest.call(mockContext, 'GET', '/Contacts'),
+			).rejects.toThrow();
+			expect(mockRequestOAuth2).toHaveBeenCalledTimes(1);
 		});
 	});
 
