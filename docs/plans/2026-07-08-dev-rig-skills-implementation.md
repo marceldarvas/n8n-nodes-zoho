@@ -333,7 +333,7 @@ git commit -m "feat: add codebase-gotchas skill"
 
 **Files:** none created; fixes applied to the three SKILL.md files if gaps found.
 
-- [ ] **Step 1: Read-only live checks — every factual claim the skills make that can be verified without deploying:**
+- [x] **Step 1: Read-only live checks — every factual claim the skills make that can be verified without deploying:**
 
 ```bash
 # Containers exist under the documented names
@@ -357,20 +357,20 @@ docker cp + restart) is NOT rehearsed during validation — rehearsing it is
 running it. It is validated by its first real use; the rollback block exists
 for that case.
 
-- [ ] **Step 2: Dispatch one fresh subagent per skill (model: sonnet), giving it ONLY the skill file path and a scenario. It must answer from the skill text alone — no repo exploration, no live commands.**
+- [x] **Step 2: Dispatch one fresh subagent per skill (model: sonnet), giving it ONLY the skill file path and a scenario. It must answer from the skill text alone — no repo exploration, no live commands.**
 
 Scenarios:
 - deploy-to-dev-rig: "You fixed a Bigin auth bug and need to test it against live Zoho. Which rig do you deploy to, list the exact commands, and state how you verify the deploy landed."
 - live-debugging: "The Bigin node started returning 401s on the dev server after a deploy. List the exact commands you run, in order, and what each result would tell you."
 - codebase-gotchas: "You're about to delete a shared helper in GenericFunctions.ts and push a PR. What must you check first, and how do you push?"
 
-- [ ] **Step 3: Review each answer against the skill (main agent)**
+- [x] **Step 3: Review each answer against the skill (main agent)**
 
 Pass criteria: correct rig choice / command sequence / no invented steps or
 out-of-band knowledge required. Any gap → fix the skill text, re-run that one
 subagent.
 
-- [ ] **Step 4: Commit any fixes**
+- [x] **Step 4: Commit any fixes**
 
 ```bash
 git add .claude/skills/
