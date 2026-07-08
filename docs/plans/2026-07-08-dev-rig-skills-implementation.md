@@ -68,7 +68,10 @@ docker logs --since 2m n8n-traefik-n8n-1 2>&1 | grep -icE 'error loading|failed 
 **CRITICAL:** `docker cp` MERGES into existing directories — it does not
 replace them. Old installs left stray `.ts` sources in the container; copying
 over them once produced a deploy that silently kept running the old version.
-Always remove the target directory inside the container first.
+Always clear the target directory inside the container first. The sequence
+below moves the old install aside (to `/tmp` — NOT to a sibling `.bak` inside
+`custom/`, which n8n would try to load as a second package) so a failed copy
+can be rolled back.
 
 ```bash
 cd /Users/marcel/Projects/Kiron/n8n-kiron/nodes/n8n-nodes-zoho && npm run build
@@ -78,7 +81,8 @@ ssh n8n-lab '
   cd ~/n8n-stack &&
   rm -rf zoho-deploy && mkdir zoho-deploy &&
   tar -xzf zoho-node.tgz -C zoho-deploy &&
-  docker exec n8n-stack-n8n-1 sh -c "rm -rf /home/node/.n8n/custom/n8n-nodes-zoho && mkdir -p /home/node/.n8n/custom/n8n-nodes-zoho" &&
+  test -f zoho-deploy/package.json && test -d zoho-deploy/dist &&
+  docker exec n8n-stack-n8n-1 sh -c "rm -rf /tmp/zoho-prev; mv /home/node/.n8n/custom/n8n-nodes-zoho /tmp/zoho-prev 2>/dev/null; mkdir -p /home/node/.n8n/custom/n8n-nodes-zoho" &&
   docker cp zoho-deploy/dist n8n-stack-n8n-1:/home/node/.n8n/custom/n8n-nodes-zoho/dist &&
   docker cp zoho-deploy/package.json n8n-stack-n8n-1:/home/node/.n8n/custom/n8n-nodes-zoho/package.json &&
   docker cp zoho-deploy/index.js n8n-stack-n8n-1:/home/node/.n8n/custom/n8n-nodes-zoho/index.js &&
@@ -86,6 +90,15 @@ ssh n8n-lab '
   docker restart n8n-stack-n8n-1
 '
 ```
+
+**Rollback** (if the copy failed and the node is gone):
+
+```bash
+ssh n8n-lab 'docker exec n8n-stack-n8n-1 sh -c "rm -rf /home/node/.n8n/custom/n8n-nodes-zoho && mv /tmp/zoho-prev /home/node/.n8n/custom/n8n-nodes-zoho" && docker restart n8n-stack-n8n-1'
+```
+
+The previous install stays at `/tmp/zoho-prev` in the container until the next
+deploy overwrites it (or the container recreates); no cleanup step needed.
 
 ## Verify the deploy landed
 
@@ -174,11 +187,17 @@ The smoke workflow exercises Bigin against live Zoho. ID `ls4wQp0tx7p2Kw0Q`
 ssh n8n-lab 'docker exec n8n-stack-n8n-1 n8n list:workflow'
 
 # Trigger a run via the n8n CLI — no API key needed
-ssh n8n-lab 'docker exec n8n-stack-n8n-1 n8n execute --id ls4wQp0tx7p2Kw0Q'
+ssh n8n-lab 'docker exec n8n-stack-n8n-1 n8n execute --id ls4wQp0tx7p2Kw0Q'; echo "exit: $?"
 ```
 
-`n8n execute` prints the execution result JSON. Success = no `error` node in
-the output; failures include the Zoho error body.
+Success criteria (check BOTH — do not eyeball):
+1. Exit code 0.
+2. Output contains no `"status":"error"` and no `NodeApiError`/`NodeOperationError`:
+   `... | grep -cE '"status":\s*"error"|NodeApiError|NodeOperationError'` → expect 0.
+
+Failures include the Zoho error body — decode it with the section below.
+(Exact output shape unverified as of 2026-07-08 — confirm on first use and
+tighten this section if it differs.)
 
 **Run-twice rule:** token-refresh and throttle fixes MUST pass two consecutive
 runs. The first run can succeed on a cached token; the second exposes
@@ -310,24 +329,48 @@ git commit -m "feat: add codebase-gotchas skill"
 
 ---
 
-### Task 4: Behavioral validation of all three skills
+### Task 4: Validation of all three skills
 
 **Files:** none created; fixes applied to the three SKILL.md files if gaps found.
 
-- [ ] **Step 1: Dispatch one fresh subagent per skill (model: sonnet), giving it ONLY the skill file path and a scenario. It must answer from the skill text alone — no repo exploration, no live commands.**
+- [ ] **Step 1: Read-only live checks — every factual claim the skills make that can be verified without deploying:**
+
+```bash
+# Containers exist under the documented names
+docker ps --format '{{.Names}}' | grep n8n-traefik-n8n-1
+ssh n8n-lab 'docker ps --format "{{.Names}}" | grep n8n-stack-n8n-1'
+# Smoke workflow ID still valid
+ssh n8n-lab 'docker exec n8n-stack-n8n-1 n8n list:workflow' | grep ls4wQp0tx7p2Kw0Q
+# Log-grep pattern executes and returns a count (0 on a healthy rig)
+ssh n8n-lab 'docker logs --since 5m n8n-stack-n8n-1 2>&1 | grep -icE "error loading|failed to load"'
+# Instance healthz
+curl -sf https://node.overace.agency/healthz && echo OK
+# Local deploy script present
+test -x /Users/marcel/Developer/Hosting/Apps/n8n/n8n-traefik/install-custom-node.sh && echo OK
+```
+
+Every command must succeed with the output the skills claim. Any mismatch →
+fix the skill text.
+
+**Explicit waiver:** the destructive dev-server deploy sequence (mv-aside +
+docker cp + restart) is NOT rehearsed during validation — rehearsing it is
+running it. It is validated by its first real use; the rollback block exists
+for that case.
+
+- [ ] **Step 2: Dispatch one fresh subagent per skill (model: sonnet), giving it ONLY the skill file path and a scenario. It must answer from the skill text alone — no repo exploration, no live commands.**
 
 Scenarios:
 - deploy-to-dev-rig: "You fixed a Bigin auth bug and need to test it against live Zoho. Which rig do you deploy to, list the exact commands, and state how you verify the deploy landed."
 - live-debugging: "The Bigin node started returning 401s on the dev server after a deploy. List the exact commands you run, in order, and what each result would tell you."
 - codebase-gotchas: "You're about to delete a shared helper in GenericFunctions.ts and push a PR. What must you check first, and how do you push?"
 
-- [ ] **Step 2: Review each answer against the skill (main agent)**
+- [ ] **Step 3: Review each answer against the skill (main agent)**
 
 Pass criteria: correct rig choice / command sequence / no invented steps or
 out-of-band knowledge required. Any gap → fix the skill text, re-run that one
 subagent.
 
-- [ ] **Step 3: Commit any fixes**
+- [ ] **Step 4: Commit any fixes**
 
 ```bash
 git add .claude/skills/
