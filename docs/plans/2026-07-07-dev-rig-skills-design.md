@@ -21,7 +21,7 @@ Three focused skills checked into `.claude/skills/<name>/SKILL.md` in this repo.
 - **Local rig path:**
   ```bash
   npm run build
-  cd /Users/marcel/Developer/Hosting/Apps/n8n/n8n-traefik
+  cd ~/Developer/Hosting/Apps/n8n/n8n-traefik
   docker compose -f docker-compose.yaml -f docker-compose.dev.yaml up -d n8n
   ./install-custom-node.sh
   ```

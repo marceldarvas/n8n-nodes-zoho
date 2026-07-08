@@ -21,8 +21,8 @@ a "fix deployed but still failing" incident).
 ## Local rig
 
 ```bash
-cd /Users/marcel/Projects/Kiron/n8n-kiron/nodes/n8n-nodes-zoho && npm run build
-cd /Users/marcel/Developer/Hosting/Apps/n8n/n8n-traefik
+npm run build   # from the repo root
+cd ~/Developer/Hosting/Apps/n8n/n8n-traefik
 docker compose -f docker-compose.yaml -f docker-compose.dev.yaml up -d n8n
 ./install-custom-node.sh
 ```
@@ -46,7 +46,7 @@ below moves the old install aside (to `/tmp` — NOT to a sibling `.bak` inside
 can be rolled back.
 
 ```bash
-cd /Users/marcel/Projects/Kiron/n8n-kiron/nodes/n8n-nodes-zoho && npm run build
+npm run build   # from the repo root
 tar -czf /tmp/zoho-node.tgz dist package.json index.js
 scp /tmp/zoho-node.tgz n8n-lab:~/n8n-stack/
 ssh n8n-lab '

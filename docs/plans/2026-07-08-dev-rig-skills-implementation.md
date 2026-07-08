@@ -11,7 +11,7 @@
 **Spec:** `docs/plans/2026-07-07-dev-rig-skills-design.md`
 
 **Facts verified live on 2026-07-08:**
-- Local rig: `/Users/marcel/Developer/Hosting/Apps/n8n/n8n-traefik/` exists with `install-custom-node.sh` and `docker-compose.dev.yaml`; container `n8n-traefik-n8n-1` running.
+- Local rig: `~/Developer/Hosting/Apps/n8n/n8n-traefik/` exists with `install-custom-node.sh` and `docker-compose.dev.yaml`; container `n8n-traefik-n8n-1` running.
 - Dev server: `ssh n8n-lab` works passwordless; container `n8n-stack-n8n-1` running; staging dir `~/n8n-stack/` exists (prior artifacts: `zoho-deploy/`, `zoho-node.tgz`).
 - Smoke workflow on dev server: ID `ls4wQp0tx7p2Kw0Q`, currently named "My workflow".
 - `docker exec n8n-stack-n8n-1 n8n list:workflow` and `n8n execute --id <id>` work without an API key.
@@ -49,8 +49,8 @@ a "fix deployed but still failing" incident).
 ## Local rig
 
 ```bash
-cd /Users/marcel/Projects/Kiron/n8n-kiron/nodes/n8n-nodes-zoho && npm run build
-cd /Users/marcel/Developer/Hosting/Apps/n8n/n8n-traefik
+npm run build   # from the repo root
+cd ~/Developer/Hosting/Apps/n8n/n8n-traefik
 docker compose -f docker-compose.yaml -f docker-compose.dev.yaml up -d n8n
 ./install-custom-node.sh
 ```
@@ -74,7 +74,7 @@ below moves the old install aside (to `/tmp` — NOT to a sibling `.bak` inside
 can be rolled back.
 
 ```bash
-cd /Users/marcel/Projects/Kiron/n8n-kiron/nodes/n8n-nodes-zoho && npm run build
+npm run build   # from the repo root
 tar -czf /tmp/zoho-node.tgz dist package.json index.js
 scp /tmp/zoho-node.tgz n8n-lab:~/n8n-stack/
 ssh n8n-lab '
@@ -346,7 +346,7 @@ ssh n8n-lab 'docker logs --since 5m n8n-stack-n8n-1 2>&1 | grep -icE "error load
 # Instance healthz
 curl -sf https://node.overace.agency/healthz && echo OK
 # Local deploy script present
-test -x /Users/marcel/Developer/Hosting/Apps/n8n/n8n-traefik/install-custom-node.sh && echo OK
+test -x ~/Developer/Hosting/Apps/n8n/n8n-traefik/install-custom-node.sh && echo OK
 ```
 
 Every command must succeed with the output the skills claim. Any mismatch →
