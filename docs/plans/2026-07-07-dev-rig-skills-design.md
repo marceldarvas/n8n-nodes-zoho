@@ -59,6 +59,7 @@ Per the writing-skills discipline, each skill is validated by a fresh subagent f
 
 - **n8n MCP server on the dev rig:** small follow-up task; the live-debugging skill already carries the "prefer MCP when connected" note so no rewrite is needed when it lands.
 - **n8n-as-code (`n8nac`):** GitOps workflow tooling — relevant to the Kiron workflows repo, not this node package. Separate evaluation.
+- **npm-publish deploy path (stabilization endpoint):** once the node stops iterating fast, publish to npm and have the rigs install `n8n-nodes-zoho@<version>` like any community node — this replaces the tarball/`docker cp` deploy entirely and lets Kiron drop the submodule pin in favor of a package.json version. Until then, the repo stays a Kiron submodule and deploys via the tarball path.
 - OAuth2 flow re-architecture, new smoke workflows, CI changes.
 - The gotchas skill records traps only; it does not duplicate CLAUDE.md's conventions.
 
