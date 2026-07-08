@@ -22,8 +22,10 @@ caused Zoho throttle storms (removed in PR #33).
 
 Plan documents lie about caller counts. Before deleting or migrating any
 shared function, `grep -rn "functionName" nodes/ credentials/` and reconcile
-against what the plan claims. (A plan once said `getAccessTokenData` had 3
-callers; it had 4 — the miss would have broken ZohoCalendar.)
+against what the plan claims. Every caller grep finds must be migrated before
+the function is deleted — grep is authoritative, the plan is not. (A plan once
+said `getAccessTokenData` had 3 callers; it had 4 — the miss would have broken
+ZohoCalendar.)
 
 ## Pushing to GitHub
 

@@ -78,13 +78,19 @@ deploy overwrites it (or the container recreates); no cleanup step needed.
 # 1. Version inside the container matches package.json here
 ssh n8n-lab 'docker exec n8n-stack-n8n-1 cat /home/node/.n8n/custom/n8n-nodes-zoho/package.json' | grep '"version"'
 
-# 2. No loader errors after restart (wait ~20s for boot)
+# 2. No loader errors after restart
+sleep 20  # let n8n boot before reading logs
 ssh n8n-lab 'docker logs --since 2m n8n-stack-n8n-1 2>&1 | grep -icE "error loading|failed to load"'
 # Expected: 0
 
-# 3. Instance is up
-curl -sf https://node.overace.agency/healthz && echo OK
+# 3. Instance is up — probe from inside the box; the public URL sits behind
+#    a Cloudflare 302, so a plain `curl -sf` succeeds without proving anything
+ssh n8n-lab 'curl -sf http://localhost:5678/healthz'
+# Expected: {"status":"ok"}
 ```
+
+If the version check shows the OLD version, the copy didn't land — rerun the
+full deploy sequence from the build step; do not patch files in place.
 
 For local-rig verification, replace the ssh wrapper with direct `docker`
 commands against `n8n-traefik-n8n-1`.

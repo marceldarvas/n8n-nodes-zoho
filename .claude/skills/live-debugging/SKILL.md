@@ -36,7 +36,8 @@ The smoke workflow exercises Bigin against live Zoho. ID `ls4wQp0tx7p2Kw0Q`
 (named "My workflow" in the UI).
 
 ```bash
-# List workflows (confirm ID if it changed)
+# Only if execute errors with an unknown-workflow message: re-list and pick
+# the row named "My workflow" (format: <id>|<name>)
 ssh n8n-lab 'docker exec n8n-stack-n8n-1 n8n list:workflow'
 
 # Trigger a run via the n8n CLI — no API key needed
