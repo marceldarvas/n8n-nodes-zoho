@@ -23,7 +23,7 @@
 **Files:**
 - Create: `.claude/skills/deploy-to-dev-rig/SKILL.md`
 
-- [ ] **Step 1: Create the skill file with this exact content**
+- [x] **Step 1: Create the skill file with this exact content**
 
 ````markdown
 ---
@@ -123,12 +123,12 @@ Run the smoke test — see the `live-debugging` skill. Throttle/auth fixes must
 pass **two consecutive runs** to count as confirmed.
 ````
 
-- [ ] **Step 2: Verify skill file parses (frontmatter + name matches directory)**
+- [x] **Step 2: Verify skill file parses (frontmatter + name matches directory)**
 
 Run: `head -5 .claude/skills/deploy-to-dev-rig/SKILL.md`
 Expected: frontmatter opens with `---`, `name: deploy-to-dev-rig`.
 
-- [ ] **Step 3: Commit**
+- [x] **Step 3: Commit**
 
 ```bash
 git add .claude/skills/deploy-to-dev-rig/SKILL.md
@@ -142,7 +142,7 @@ git commit -m "feat: add deploy-to-dev-rig skill"
 **Files:**
 - Create: `.claude/skills/live-debugging/SKILL.md`
 
-- [ ] **Step 1: Create the skill file with this exact content**
+- [x] **Step 1: Create the skill file with this exact content**
 
 ````markdown
 ---
@@ -238,12 +238,12 @@ that suddenly takes much longer before erroring often means dead credentials,
 not a performance bug.
 ````
 
-- [ ] **Step 2: Verify frontmatter**
+- [x] **Step 2: Verify frontmatter**
 
 Run: `head -5 .claude/skills/live-debugging/SKILL.md`
 Expected: `name: live-debugging`.
 
-- [ ] **Step 3: Commit**
+- [x] **Step 3: Commit**
 
 ```bash
 git add .claude/skills/live-debugging/SKILL.md
@@ -257,7 +257,7 @@ git commit -m "feat: add live-debugging skill"
 **Files:**
 - Create: `.claude/skills/codebase-gotchas/SKILL.md`
 
-- [ ] **Step 1: Create the skill file with this exact content**
+- [x] **Step 1: Create the skill file with this exact content**
 
 ````markdown
 ---
@@ -310,7 +310,7 @@ attributing it to your change:
 - Deploy model is tarball/`docker cp` (see `deploy-to-dev-rig`); npm-publish is the planned endpoint once the package stabilizes.
 ````
 
-- [ ] **Step 2: Verify the claims that are checkable**
+- [x] **Step 2: Verify the claims that are checkable**
 
 ```bash
 grep -n "requestOAuth2" nodes/GenericFunctions.ts | head -5   # expect 4 helper call sites
@@ -320,7 +320,7 @@ gh issue view 34 --repo marceldarvas/n8n-nodes-zoho --json state -q .state  # ex
 
 If any check contradicts the skill text, fix the skill text (not the code).
 
-- [ ] **Step 3: Commit**
+- [x] **Step 3: Commit**
 
 ```bash
 git add .claude/skills/codebase-gotchas/SKILL.md
