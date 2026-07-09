@@ -63,12 +63,16 @@ The CLI covers triggering; the REST API adds execution history and richer
 filtering. Base URL: `https://node.overace.agency/api/v1`, header
 `X-N8N-API-KEY: <key>`.
 
-<!-- MARCEL: fill in API key location (env var on n8n-lab? 1Password?) -->
+The key lives in 1Password (item name says "Local" but the key is valid for
+the dev server — verified 2026-07-09):
 
 ```bash
+N8N_API_KEY=$(op read "op://Private/N8N - Local/Saved on 127.0.0.1/n8n api")
 curl -s -H "X-N8N-API-KEY: $N8N_API_KEY" \
   'https://node.overace.agency/api/v1/executions?workflowId=ls4wQp0tx7p2Kw0Q&limit=5'
 ```
+
+Never print or commit the key itself — retrieve it via `op read` per use.
 
 If an n8n MCP server connected to this instance is available in the session,
 prefer its workflow/execution tools over raw curl.
