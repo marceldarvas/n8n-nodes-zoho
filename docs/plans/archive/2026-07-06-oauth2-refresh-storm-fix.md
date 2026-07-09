@@ -8,7 +8,7 @@
 
 **Tech Stack:** TypeScript, n8n-workflow ^2.16.0, Jest (`npm test`), build via `npm run build` (`tsc && gulp`).
 
-**Repo / branch:** work in `/Users/marcel/Projects/Kiron/n8n-kiron/nodes/n8n-nodes-zoho` (its own git repo, remote `marceldarvas/n8n-nodes-zoho`). Create branch `fix/oauth2-refresh-storm` off `master`. NOTE: `npm install` on this machine needs `--ignore-scripts` (Node 26 can't build the optional `isolated-vm` native dep; it's unused at dev time).
+**Repo / branch:** work in `<repo root>` (its own git repo, remote `marceldarvas/n8n-nodes-zoho`). Create branch `fix/oauth2-refresh-storm` off `master`. NOTE: `npm install` on this machine needs `--ignore-scripts` (Node 26 can't build the optional `isolated-vm` native dep; it's unused at dev time).
 
 ---
 
@@ -40,7 +40,7 @@
 - [ ] **Step 1: Create the branch**
 
 ```bash
-cd /Users/marcel/Projects/Kiron/n8n-kiron/nodes/n8n-nodes-zoho
+cd <repo root>
 git checkout master && git pull --ff-only
 git checkout -b fix/oauth2-refresh-storm
 npm install --ignore-scripts
@@ -578,12 +578,12 @@ git commit -m 'fix: remove per-request token refresh (getAccessTokenData)'
 
 ### Task 6: Live verification on the local rig
 
-The local dev n8n (2.28.7) lives at `/Users/marcel/Developer/Hosting/Apps/n8n/n8n-traefik`. The install script builds the package and copies it into the running container.
+The local dev n8n (2.28.7) lives at `~/Developer/Hosting/Apps/n8n/n8n-traefik`. The install script builds the package and copies it into the running container.
 
 - [ ] **Step 1: Deploy the fixed build locally**
 
 ```bash
-cd /Users/marcel/Developer/Hosting/Apps/n8n/n8n-traefik
+cd ~/Developer/Hosting/Apps/n8n/n8n-traefik
 docker compose -f docker-compose.yaml -f docker-compose.dev.yaml up -d n8n
 ./install-custom-node.sh
 ```
@@ -605,7 +605,7 @@ This step needs a human (OAuth credential lives in his n8n). Ask Marcel to run t
 NOTE: if the credential is connected on the dev server (node.overace.agency) rather than locally, deploy there instead: build, then copy `dist` + `package.json` to the box and restart —
 
 ```bash
-cd /Users/marcel/Projects/Kiron/n8n-kiron/nodes/n8n-nodes-zoho && npm run build
+npm run build   # from the repo root
 tar -czf /tmp/zoho-node.tgz dist package.json index.js
 scp /tmp/zoho-node.tgz n8n-lab:~/n8n-stack/
 ssh n8n-lab 'cd ~/n8n-stack && tar -xzf zoho-node.tgz && docker cp dist n8n-stack-n8n-1:/home/node/.n8n/custom/n8n-nodes-zoho/dist && docker cp package.json n8n-stack-n8n-1:/home/node/.n8n/custom/n8n-nodes-zoho/package.json && docker exec -u root n8n-stack-n8n-1 chown -R node:node /home/node/.n8n/custom && docker restart n8n-stack-n8n-1'

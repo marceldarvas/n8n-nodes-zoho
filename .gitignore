@@ -8,3 +8,6 @@ package-lock.json
 yarn.lock
 .env
 .idea
+
+# machine-local Claude Code config
+.claude/settings.local.json
